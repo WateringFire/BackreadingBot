@@ -109,13 +109,23 @@ i.e.: https://edstem.org/us/courses/50191/lessons/87264/attempts?slide=478583
 
 ## Local Command Examples
 
-Local execution is supported for the checking ungraded and consistency commands via the `src/commands.py` file. In doing so, as messages are no longer going through discord, you can actually generate *useful* Ed links (as they need to include student emails) if you run things this way. You'll need your [Ed API token](https://edstem.org/us/settings/api-tokens), a link to the assignment you wish to check, and some other optional paramters that are explained in more depth via the `--help` flag.
+Local execution is supported for the checking ungraded and consistency commands via the `src/commands.py` file. In doing so, as messages are no longer going through discord, you can actually generate *useful* Ed links (as they need to include student emails) if you run things this way. You'll need your [Ed API token](https://edstem.org/us/settings/api-tokens), a link to the assignment you wish to check (usually the slide with inputted grades), and some other optional parameters that are explained in more depth via the `--help` flag.
 
 Below is an example of a consistency check run via this method (with the Ed API token removed):
 ```bash
 python3.9 commands.py -c consistency -e ED_TOKEN -l 'https://edstem.org/us/courses/50191/lessons/87264/attempts?email=jspaniac@uw.edu&slide=478586' -t -f
 ```
 The `-c` flag is for which command you'd like to run, `-e` is for your Ed API token, `-l` is for the link to the final submission slide for the assignment, `-t` indicates that we want to check against the overall grading template, and `-f` shows we want to have our results be FERPA compliant (not including student emails).
+
+Below is an example of running a resubmission consistency check for a resubmission grading spreadsheet via this method (with the Ed API token removed):
+```bash
+python commands.py -c consistency_resub -e ED_TOKEN -l 'https://edstem.org/us/courses/67442/lessons/119281/attempts?email=jachi@uw.edu&slide=662732' -t -s temp/c0.csv
+```
+This command is run assuming you have a `temp` directory in the root of the project, and that you have a `c0.csv` file in that directory that maps TA names to student Ed IDs that they graded. The `c0.csv` file should look like the following:
+```
+TA,Student Id
+TA_Name,123456
+```
 
 # Development
 ## Directory Layout
