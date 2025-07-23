@@ -540,8 +540,8 @@ class DiscordHelper:
             continue
 
         for thread in reversed(ed_threads):
-            if (thread['category'] != "Assignments" or
-               thread['type'] != "question"):
+            if not ((thread['category'] == "Assignments" and thread['type'] == "question") or 
+                    (thread['category'] == "Resubmissions" and thread['type'] == "question")):
                 # Check to see if the post is actually a question related to
                 # assignments
                 continue
