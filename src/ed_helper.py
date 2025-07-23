@@ -52,8 +52,8 @@ class EdConstants:
 class EdRegex:
     NUM_PATTERN = re.compile(r'[0-9]+')  # noqa: E501
     COURSE_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/discussion/')  # noqa: E501
-    ASSIGNMENT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/slides/[0-9]+')  # noqa: E501
-    ATTEMPT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/attempts\?(email=[A-Za-z0-9]+(@|%40)uw.edu&)?slide=[0-9]+')  # noqa: E501
+    ASSIGNMENT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/slides/[0-9]+/?')  # noqa: E501
+    ATTEMPT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/attempts\?(email=[A-Za-z0-9]+(@|%40)uw.edu&)?slide=[0-9]+/?')  # noqa: E501
     CONTENT_JUNK_REGEX = re.compile(r'\u003c[^\u003c\u003e]*\u003e')  # noqa: E501
     REMOVE_HTML_REGEX = re.compile('<.*?>')  # noqa: E501
     EMAIL_REGEX = re.compile(r'[A-Za-z0-9]+(@|%40)(uw|cs.washington).edu')  # noqa: E501
@@ -419,10 +419,11 @@ class EdHelper:
         datetime formatting. 'milliseconds' is whether or not the given time
         contains milliseconds
         """
+        # changed to adjust to new ed time format
         splitted = time.rsplit(':', 1)
-        datetime_format = (EdConstants.DATETIME_FORMAT.replace('.', '')
-                           if not milliseconds else
-                           EdConstants.DATETIME_FORMAT)
+        datetime_format = EdConstants.DATETIME_FORMAT
+        if (milliseconds):
+                datetime_format = datetime_format.replace('.','')
         return datetime.datetime.strptime(
             splitted[0] + splitted[1], datetime_format)
 
