@@ -419,10 +419,16 @@ class EdHelper:
         datetime formatting. 'milliseconds' is whether or not the given time
         contains milliseconds
         """
+
+        #        splitted = time.rsplit(':', 1)
+        # base_format = '%Y-%m-%dT%H:%M%S%f%z'
+        # if (milliseconds):
+            # base_format = '%Y-%m-%dT%H:%M%S.%f%z'
+        # return datetime.datetime.strptime(splitted[0] + splitted[1], base_format)
         # changed to adjust to new ed time format
         splitted = time.rsplit(':', 1)
         datetime_format = EdConstants.DATETIME_FORMAT
-        if (milliseconds):
+        if (not milliseconds):
                 datetime_format = datetime_format.replace('.','')
         return datetime.datetime.strptime(
             splitted[0] + splitted[1], datetime_format)
