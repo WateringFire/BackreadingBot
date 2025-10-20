@@ -2,7 +2,7 @@
 This script library allows CSE 12x/14x TAs perform various grading assistance checks on Ed assignments
 
 ## Deductions checker
-python3.9 commands.py -c deductions -e EqU_s2.oQ2ts8UzSdwBmZfxeldpRCQjmTajJstWL5Pwa06O -l 'SUBMIMSSION LINK ON ED OF YOURSELF' -t -f
+python3.9 commands.py -c deductions -e API_TOKEN -l 'SUBMIMSSION LINK ON ED OF YOURSELF' -t -f
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
