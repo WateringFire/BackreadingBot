@@ -71,6 +71,8 @@ class DiscordHelper:
         Returns: The newly created discord thread
         """
         message = await send_message(channel, starting_message)
+        if (len(thread_name) > 100):
+            thread_name = thread_name[:100]
         return await message.create_thread(name=thread_name)
 
     @staticmethod
@@ -117,13 +119,27 @@ class DiscordHelper:
                 'thread_id' - The Ed ID of the thread being archived
                 'final_message' - The final message to send to the thread
         """
-        discord_thread_id = database.get_threads(guild_id)[ed_thread_id]
-        logging.debug(f"Resolving thread {discord_thread_id}")
-        thread = bot.get_channel(discord_thread_id)
+        if (final_message == "Deleted from Ed"):
+            logging.debug(f"Deleting thread {ed_thread_id}")
+            # try:
+            discord_thread_id = database.get_threads(guild_id)[ed_thread_id]
+            # except Exception as e:
+            #     logging.exception(f"exception was thrown{e}") 
+            thread = bot.get_channel(discord_thread_id)
 
-        await send_message(thread, final_message)
-        await thread.edit(archived=True, locked=True,)
-        database.remove_thread(guild_id, ed_thread_id)
+            await send_message(thread, final_message)
+            
+            await thread.edit(archived=True, locked=True,)
+            database.remove_thread(guild_id, ed_thread_id)
+            # raise Exception(final_message)
+        else:
+            discord_thread_id = database.get_threads(guild_id)[ed_thread_id]
+            logging.debug(f"Resolving thread {discord_thread_id}")
+            thread = bot.get_channel(discord_thread_id)
+
+            await send_message(thread, final_message)
+            await thread.edit(archived=True, locked=True,)
+            database.remove_thread(guild_id, ed_thread_id)
 
     @staticmethod
     async def _get_token(
@@ -533,18 +549,23 @@ class DiscordHelper:
         for thread_id in deleted_threads:
             # Thread's been deleted from ed and is still in discord (or in
             # theory the thread is really old and unanswered on ed)
-            logging.info(f"Closing deleted thread {thread_id} with channel " +
-                         f"id {server_threads[thread_id]}")
+            logging.info(f"Closing deleted thread {thread_id} with channel ")
+                        #  f"id {server_threads[thread_id]}")
             await DiscordHelper.resolve_thread(bot, database, guild_id,
                                                thread_id, "Deleted from Ed")
+            raise Exception(str(deleted_threads) + ' SERVER THREADS: ' + str(server_threads)+ 'here')
             continue
+# ./bash/keep-running.sh &
+# ./bash/kill.sh
+
 
         for thread in reversed(ed_threads):
-            if (thread['category'] != "Assignments" or
-               thread['type'] != "question"):
-                # Check to see if the post is actually a question related to
-                # assignments
+            if not ((thread['category'] == "Assignments" and thread['type'] == "question") or
+                    (thread['category'] == "Resubmissions" and thread['type'] == "question")):
+            # Check to see if the post is actually a question related to
+            # assignments or resubmissions
                 continue
+
 
             ed_thread_id = str(thread['id'])
             if ed_thread_id in server_threads and thread['is_answered']:
