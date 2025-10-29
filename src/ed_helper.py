@@ -27,6 +27,8 @@ class EdConstants:
     CHALLENGE_USER_REQUEST = 'https://us.edstem.org/api/challenges/{challenge_id}/users'  # noqa: E501
     CHALLENGE_SUBMISSIONS = 'https://us.edstem.org/api/users/{user_id}/challenges/{challenge_id}/submissions'  # noqa: E501
 
+    ED_INLINE = "https://us.edstem.org/api/challenges/submissions/{submission_id}/line_comments"
+
     ED_ATTEMPT_RESULTS_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}/results?students=1&strategy=latest&observers=0"  # noqa: E501
     ED_LESSON_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}?view=1"  # noqa: E501
     ED_RUBRIC_REQUEST = "https://us.edstem.org/api/rubrics/{rubric_id}"  # noqa: E501
@@ -239,6 +241,13 @@ class EdHelper:
         Params 'slide_id' - The ID of the quiz slide to get the rubric of
         Returns: The rubric ID for this quiz slide
         """
+        # raise Exception(str(get_response(EdConstants.ED_QUESTION_REQUEST.format(
+        #     slide_id=slide_id), self.token, self.retries)
+        # ))
+        # raise Exception(str('TOKEN: ') + str(self.token) + ' retries: ' + str(self.retries)+ str(get_response(EdConstants.ED_QUESTION_REQUEST.format(
+        #     slide_id=slide_id
+        # ), self.token, self.retries)))
+    
         return get_response(EdConstants.ED_QUESTION_REQUEST.format(
             slide_id=slide_id
         ), self.token, self.retries)['questions'][0]['rubric_id']
@@ -398,6 +407,31 @@ class EdHelper:
             ret['feedback_status'] = 'complete'
 
         return ret
+    
+
+    def get_inline_submissions(
+        self,
+        submission_id: int
+    ) -> List[Dict]:
+        """
+        TODO ADD COMMENTING FOR PULL INLINE
+        """
+        if DEBUG:
+            print("------------------------------------------------------------------------------------------------------------------------------------------------")
+        # return get_response(EdConstants.ED_INLINE.format(
+        #     submission_id=submission_id
+        # ), self.token, self.retries)
+        url = EdConstants.ED_INLINE
+        # url = "https://us.edstem.org/api/users/{user_id}/challenges/{challenge_id}/submissions"
+        return get_response(url.format(
+            submission_id=submission_id
+        ), self.token, self.retries)
+    
+    def test_pull (
+        self,
+        url: str
+    ) -> List[Dict]:
+        return get_response(url, self.token, self.retries)
 
     @staticmethod
     def get_ids(
@@ -422,7 +456,7 @@ class EdHelper:
         # changed to adjust to new ed time format
         splitted = time.rsplit(':', 1)
         datetime_format = EdConstants.DATETIME_FORMAT
-        if (milliseconds):
+        if (not milliseconds):
                 datetime_format = datetime_format.replace('.','')
         return datetime.datetime.strptime(
             splitted[0] + splitted[1], datetime_format)
@@ -481,6 +515,8 @@ class EdHelper:
         if sid[0].isdigit():
             return str(int(re.search(r'\d+', sid).group()))
         return sid
+    
+
 
 
 def get_response(
@@ -531,3 +567,5 @@ def post_payload(
         except requests.exceptions.ConnectionError:
             logging.debug(f"GET Attempt {i}/{retries} failed, retrying")
     return None
+
+

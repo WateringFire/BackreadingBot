@@ -6,6 +6,7 @@ import datetime
 
 from src.ed_helper import EdHelper
 from src.consistency_checker import ConsistencyChecker
+from src.deductions_checker import DeductionsChecker
 from src.utils import (
     progress_bar, invert_csv
 )
@@ -14,7 +15,7 @@ from src.exceptions import (
 )
 from src.constants import TEMP_DIR
 
-CHOICES = ['consistency', 'ungraded', 'check_feedback_boxes']
+CHOICES = ['consistency', 'ungraded', 'check_feedback_boxes', 'deductions']
 PROGRESS_INCREMENT = 50
 
 
@@ -211,6 +212,32 @@ async def check_feedback_boxes(args):
     print()
     print(f"Total number of occurrences found: {len(found)}")
 
+async def deductions(args):
+    if args.ed_token is None:
+        raise MissingArgument("Ed token required to run grading checks")
+    if args.assignment_link is None:
+        raise MissingArgument("Assignment link required to run grading checks")
+    if not EdHelper.valid_token(args.ed_token):
+        raise InvalidArgument("Ed token is invalid")
+    if not EdHelper.valid_assignment_url(args.assignment_link):
+        raise InvalidArgument("Assignment link is invalid")
+
+    ed_helper = EdHelper(args.ed_token)
+    file_name = os.path.join(TEMP_DIR, f'user-{datetime.datetime.now()}')
+
+    print("\nRunning deductions checker:")
+    print(progress_bar(0, 1), end='\r', flush=True)
+
+    async def update_progress(curr, total):
+        print(progress_bar(curr, total), end='\n' if curr == total
+              else '\r', flush=True)
+
+    grouped_deductions = (
+        await DeductionsChecker.check_deductions(
+            ed_helper, args.assignment_link, file_name, args.template,
+            update_progress, args.ferpa
+        )
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
