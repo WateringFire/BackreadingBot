@@ -173,8 +173,7 @@ class ConsistencyChecker:
         """
         grace_period = datetime.timedelta(minutes=ASSIGNMENT_GRACE_MINUTES)
         for submission in submissions:
-            created_at = EdHelper.parse_datetime(submission['created_at'],
-                                                 milliseconds=True)
+            created_at = EdHelper.parse_datetime(submission['created_at'])
             # jachi: Check if a late submission was graded by TA
             if created_at >= due_at + grace_period:
                 if submission['feedback'] is not None and (submission['feedback']['criteria'] != [] or submission['feedback']['content'] != ''):

@@ -109,23 +109,39 @@ i.e.: https://edstem.org/us/courses/50191/lessons/87264/attempts?slide=478583
 
 ## Local Command Examples
 
-Local execution is supported for the checking ungraded and consistency commands via the `src/commands.py` file. In doing so, as messages are no longer going through discord, you can actually generate *useful* Ed links (as they need to include student emails) if you run things this way. You'll need your [Ed API token](https://edstem.org/us/settings/api-tokens), a link to the assignment you wish to check (usually the slide with inputted grades), and some other optional parameters that are explained in more depth via the `--help` flag.
+Local execution is supported for the checking ungraded and consistency commands for both regular submissions and resubmissions via the `src/commands.py` file. In doing so, as messages are no longer going through discord, you can actually generate *useful* Ed links (as they need to include student emails) if you run things this way. You'll need your [Ed API token](https://edstem.org/us/settings/api-tokens), the link(s) to the assignment(s) you wish to check (specifically, the link to the slide with inputted grades), and some other optional parameters that are explained in more depth via the `--help` flag.
 
-Below is an example of a consistency check run via this method (with the Ed API token removed):
+Below is an example of a consistency check for a first-time submission cycle run via this method (with the Ed API token removed):
 ```bash
 python3.9 commands.py -c consistency -e ED_TOKEN -l 'https://edstem.org/us/courses/50191/lessons/87264/attempts?email=jspaniac@uw.edu&slide=478586' -t -f
 ```
 The `-c` flag is for which command you'd like to run, `-e` is for your Ed API token, `-l` is for the link to the final submission slide for the assignment, `-t` indicates that we want to check against the overall grading template, and `-f` shows we want to have our results be FERPA compliant (not including student emails).
 
-Below is an example of running a resubmission consistency check for a resubmission grading spreadsheet via this method (with the Ed API token removed):
+Below is an example of running a resubmission consistency check for a resubmission grading cycle via this method (with the Ed API token removed):
 ```bash
-python commands.py -c consistency_resub -e ED_TOKEN -l 'https://edstem.org/us/courses/67442/lessons/119281/attempts?email=jachi@uw.edu&slide=662732' -t -s temp/c0.csv
+python commands.py -c consistency_resub -e ED_TOKEN -l 'https://edstem.org/us/courses/67442/lessons/119281/attempts?email=jachi@uw.edu&slide=662732' 'https://edstem.org/us/courses/90026/lessons/155056/attempts?email=iywang@uw.edu&slide=904654' -t -s temp/c0.csv temp/p0.csv -d RESUB_DEADLINE
 ```
-This command is run assuming you have a `temp` directory in the root of the project, and that you have a `c0.csv` file in that directory that maps TA names to student Ed IDs that they graded. The `c0.csv` file should look like the following:
+This command is run assuming you have a `temp` directory in the root of the project, and that you have a `c0.csv` and `p0.csv` file in that directory that maps TA names to student Ed IDs that they graded. (It is recommended to supply spreadsheets with the `-s` argument to speed up consistency checks, though it is possible to run without.) The `c0.csv` and `p0.csv` files should look like the following:
 ```
 TA,Student Id
 TA_Name,123456
+...
 ```
+Note the differences from a regular consistency check:
+- You may check *multiple assignments* in one command run by supplying multiple assignment links(and the spreadsheet corresponding to each) as space-separated values. This allows you to run the command just one time for resubmission consistency checks, rather than running it once per assignment eligible in the current resubmission cycle. The [Abbreviating Local Commands](#abbreviating-local-commands) section describes how you could further simplify the resubmission consistency check command.
+- You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S %z`). By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
+
+## Abbreviating Local Commands
+
+Because supplying the assignment link(s) each time you run consistency checks can be tedious, there is an alternative option for both regular and resubmission consistency checks. Rather than providing all assignment links on the command line, you can instead use the `-a` flag to provide a configuration file of all the assignment links for the quarter *along with* the `-n` flag to indicate which of those assignments to check.
+
+The configuration file should be formatted to consist of multiple rows, where each row is the link to the *final submission* slide for an assignment. The `-n` flag accepts one or multiple numbers; each number indicates that the consistency check will be run for the assignment link at that row number (1-indexed) of the configuration file. Similar to when the command accepts multiple assignment links, the number of values following the `-n` flag should be equal to the number of spreadsheets following the `-s` flag.
+
+Below is an example of a consistency check (for a resubmission) run via this method (with the Ed API token removed):
+```bash
+python3.9 commands.py -c consistency_resub -e ED_TOKEN -a temp/CONFIGURATION_FILE_NAME -n 2 3 -t -s temp/SPREADSHEET_NAME_1 temp/SPREADSHEET_NAME_2 -d RESUB_DEADLINE
+```
+`-n 2 3` will use the assignment links in the 2nd and 3rd rows (1-indexed) of the configuration file located at `temp/CONFIGURATION_FILE_NAME`.
 
 # Development
 ## Directory Layout

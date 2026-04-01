@@ -24,9 +24,16 @@ FULL_SQUARE = "■"
 # Progress bar constants
 BAR_SIZE = 40
 PROGRESS_UPDATE_MULTIPLE = 50
+NUM_PROGRESS_UPDATES = 10
 
 # What the assignment due time grace period is
 ASSIGNMENT_GRACE_MINUTES = 15
+
+# What the resub due time grace period is
+RESUB_GRACE_MINUTES = 0
+
+# Timezone region name
+TIMEZONE_REGION_NAME = "America/Los_Angeles"
 
 # Turns out discord has a max number of embed fields...
 DISCORD_MAX_EMBED_FIELDS = 25

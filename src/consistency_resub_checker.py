@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import re
 import logging
+import math
 
 from typing import (
     List, Dict, Optional, Callable, Tuple, Union
@@ -11,7 +12,7 @@ from src.utils import (
     write_csv, convert_csv_to_html
 )
 from src.constants import (
-    TEMP_DIR, PROGRESS_UPDATE_MULTIPLE, ASSIGNMENT_GRACE_MINUTES, LOGGING_FILE
+    TEMP_DIR, NUM_PROGRESS_UPDATES, PROGRESS_UPDATE_MULTIPLE, RESUB_GRACE_MINUTES, LOGGING_FILE
 )
 
 from src.ed_helper import EdHelper
@@ -174,14 +175,10 @@ class ConsistencyResubChecker:
                  submission. None, None if there are no issues
         """
         for submission in submissions:
-            created_at = EdHelper.parse_datetime(submission['created_at'],
-                                                 milliseconds=True)
-            # jachi: This is a temporary hack to check for late resubmissions that were graded by a TA.
-            # It should be refactored to be more general and not hard-coded later!
-            # For now, each week, just change the current date to the due date of the assignment to whenever the resubmission was due.
-            # And yes, the time below is 12:15 with our 15 minute grace period! It looks weird with 19 because of the timezone conversion.
-            RESUB_DUE = datetime.fromisoformat("2024-12-13 19:15:00+11:00")
-            if created_at >= RESUB_DUE:
+            created_at = EdHelper.parse_datetime(submission['created_at'])
+            grace_period = timedelta(minutes=RESUB_GRACE_MINUTES)
+
+            if created_at < due_at + grace_period:
                 if submission['feedback'] is not None and (submission['feedback']['criteria'] != [] or submission['feedback']['content'] != ''):
                     reason = "Possible late submission graded, "
                     content = EdHelper.parse_content(
@@ -279,9 +276,10 @@ class ConsistencyResubChecker:
     @staticmethod
     async def _find_fixes(
         ed_helper: EdHelper,
-        url: str,
+        urls: List[str],
+        resub_due: datetime,
         template: Optional[bool] = False,
-        spreadsheet: Optional[Dict[str, str]] = None,
+        spreadsheets: Optional[List[Dict[str, str]]] = None,
         progress_bar_update: Optional[Callable[[int, int], None]] = None,
         ferpa: Optional[bool] = True
     ) -> Tuple[Dict[str, List[Tuple[str, str]]], List[str]]:
@@ -292,10 +290,12 @@ class ConsistencyResubChecker:
 
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
-                'url' - The ed assignment url
+                'urls' - The ed assignment urls
+                'resub_due' - The resubmission due date to enforce in place of
+                              the assignment due date
                 'template' - Whether or not the grading template is expected,
                              default False
-                'spreadsheet' - A dictionary mapping ed student ID to TA name,
+                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name,
                                 default None
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
@@ -306,75 +306,90 @@ class ConsistencyResubChecker:
                  assignment that had incorrect formatting and a List of links
                  to student assignments not found in the grading spreadsheet
         """
-        attempt_slide = EdHelper.is_overall_submission_link(url)
-
-        # Get the challenge id for the assignment
-        ids = EdHelper.get_ids(url)
-        lesson_id, slide_id = ids[1], ids[2]
-        challenge_id = (ed_helper.get_slide(url)['challenge_id']
-                        if not attempt_slide else None)
-
-        # Get user/challenge information
-        users, due_at, num_criteria, rubric = None, None, None, None
-        if not attempt_slide:
-            users = [(user['id'], None, user['tutorial'], None)
-                     for user in ed_helper.get_challenge_users(challenge_id)
-                     if user['course_role'] == "student"]
-
-            challenge = ed_helper.get_challenge(challenge_id)
-            due_at = EdHelper.parse_datetime(challenge['due_at'],
-                                             milliseconds=False)
-            num_criteria = len(challenge['settings']['criteria'])
-        else:
-            users = [(attempt['user_id'], attempt['email'],
-                      attempt['tutorial'], attempt['sourced_id'])
-                     for attempt in ed_helper.get_attempt_results(lesson_id)
-                     if attempt['course_role'] == 'student']
-
-            lesson = ed_helper.get_lesson(lesson_id)
-            due_at = EdHelper.parse_datetime(lesson['due_at'],
-                                             milliseconds=False)
-            rubric = ed_helper.get_rubric(ed_helper.get_rubric_id(slide_id))
-            num_criteria = len(rubric['sections'])
-
         fixes, not_present, count = defaultdict(list), [], 0
-        for (user_id, email, section, submission_id) in users:
-            if spreadsheet and str(user_id) not in spreadsheet:
-                # This student isn't present in the grading spreadsheet, skip
-                not_present.append(ConsistencyResubChecker._get_link(
-                    ids, user_id, email, submission_id, attempt_slide, ferpa
-                ))
-                continue
 
-            if count % PROGRESS_UPDATE_MULTIPLE == 0:
-                if progress_bar_update is not None:
-                    _ = await progress_bar_update(count, len(users))
-                logging.info(f"{count} / {len(users)} Completed")
-            count += 1
+        for i, url in enumerate(urls):
+            spreadsheet = None
+            if spreadsheets:
+                spreadsheet = spreadsheets[i]
 
-            submissions = (ed_helper.get_challenge_submissions(
-                                user_id, challenge_id
-                           ) if not attempt_slide else
-                           ed_helper.get_attempt_submissions(
-                                user_id, lesson_id, slide_id,
-                                submission_id, rubric
-                           ))
-            if submissions is None:
-                continue
+            attempt_slide = EdHelper.is_overall_submission_link(url)
 
-            submission_fixes, submission_id = (
-                ConsistencyResubChecker._find_submission_fixes(
-                    submissions, num_criteria, due_at, template
+            # Get the challenge id for the assignment
+            ids = EdHelper.get_ids(url)
+            lesson_id, slide_id = ids[1], ids[2]
+            challenge_id = (ed_helper.get_slide(url)['challenge_id']
+                            if not attempt_slide else None)
+
+            # Get user/challenge information
+            users, due_at, num_criteria, rubric = None, None, None, None
+            if not attempt_slide:
+                users = [(user['id'], None, user['tutorial'], None)
+                        for user in ed_helper.get_challenge_users(challenge_id)
+                        if user['course_role'] == "student"]
+
+                challenge = ed_helper.get_challenge(challenge_id)
+                due_at = EdHelper.parse_datetime(challenge['due_at'],
+                                                milliseconds=False)
+                num_criteria = len(challenge['settings']['criteria'])
+            else:
+                users = [(attempt['user_id'], attempt['email'],
+                        attempt['tutorial'], attempt['sourced_id'])
+                        for attempt in ed_helper.get_attempt_results(lesson_id)
+                        if attempt['course_role'] == 'student']
+
+                lesson = ed_helper.get_lesson(lesson_id)
+                due_at = EdHelper.parse_datetime(lesson['due_at'],
+                                                milliseconds=False)
+                rubric = ed_helper.get_rubric(ed_helper.get_rubric_id(slide_id))
+                num_criteria = len(rubric['sections'])
+
+            not_present, count = [], 0
+            for (user_id, email, section, submission_id) in users:
+                # iywang: Progress bar update adjustments to have progress
+                # bar reset for each assignment being checked and not appear
+                # to stall when we have a large number of users not in the
+                # spreadsheet (common for resubmissions).
+                count += 1
+
+                # Take ceiling to avoid mod by 0
+                if count % math.ceil(len(users) / NUM_PROGRESS_UPDATES) == 0:
+                    if progress_bar_update is not None:
+                        _ = await progress_bar_update(count, len(users))
+                    logging.info(f"{count} / {len(users)} Completed")
+
+                if spreadsheet and str(user_id) not in spreadsheet:
+                    # This student isn't present in the grading spreadsheet, skip
+                    not_present.append(ConsistencyResubChecker._get_link(
+                        ids, user_id, email, submission_id, attempt_slide, ferpa
+                    ))
+                    continue
+
+                submissions = (ed_helper.get_challenge_submissions(
+                                    user_id, challenge_id
+                            ) if not attempt_slide else
+                            ed_helper.get_attempt_submissions(
+                                    user_id, lesson_id, slide_id,
+                                    submission_id, rubric
+                            ))
+                if submissions is None:
+                    continue
+
+                submission_fixes, submission_id = (
+                    ConsistencyResubChecker._find_submission_fixes(
+                        submissions, num_criteria, resub_due, template
+                    )
                 )
-            )
-            if submission_fixes:
-                link = ConsistencyResubChecker._get_link(
-                    ids, user_id, email, submission_id, attempt_slide, ferpa
-                )
+                if submission_fixes:
+                    link = ConsistencyResubChecker._get_link(
+                        ids, user_id, email, submission_id, attempt_slide, ferpa
+                    )
 
-                key = (section if spreadsheet is None
-                       else spreadsheet[str(user_id)])
-                fixes[key].append((link, submission_fixes))
+                    key = (section if spreadsheet is None
+                        else spreadsheet[str(user_id)])
+                    fixes[key].append((link, submission_fixes))
+                
+            print("Done running resub consistency check for lesson " + lesson_id)
 
         logging.info("Completed consistency check")
         return fixes, not_present
@@ -399,9 +414,10 @@ class ConsistencyResubChecker:
     @staticmethod
     async def check_consistency(
         ed_helper: EdHelper,
-        url: str, file_name: str,
+        urls: List[str], file_name: str,
+        resub_due: datetime,
         template: Optional[bool] = False,
-        spreadsheet: Optional[Dict[str, str]] = None,
+        spreadsheets: Optional[List[Dict[str, str]]] = None,
         progress_bar_update: Optional[Callable[[int, int], None]] = None,
         ferpa: Optional[bool] = True
     ) -> Tuple[Dict[str, Tuple[str, str]], List[str], int]:
@@ -411,10 +427,12 @@ class ConsistencyResubChecker:
 
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
-                'url' - The url of the ed assignment to check
+                'url' - The urls of the ed assignments to check
                 'file_name' - The name to use for the two saved .csv and .html
                               files
-                'spreadsheet' - A dictionary mapping ed student ID to TA name
+                'resub_due' - The resubmission due date to enforce in place of
+                              the assignment due date
+                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name
                                 (can be None)
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
@@ -426,13 +444,18 @@ class ConsistencyResubChecker:
                  student assignments not found in the grading spreadsheet, and
                  the total number of issues found
         """
-        # Remove email since it mseese with ID regex
-        url = ConsistencyResubRegex.EMAIL_REGEX.sub('', url)
+        # iywang: Since multiple assignments are typically eligible per resub
+        # cycle, allow for multiple assignments to be consistency-checked
+        # at a time under one resub due date. Also, no longer hard-coding
+        # resub due date (must pass in from cmd line).
+
+        # Remove email since it messes with ID regex
+        urls = [ConsistencyResubRegex.EMAIL_REGEX.sub('', url) for url in urls]
 
         fixes, not_present = (
             await ConsistencyResubChecker._find_fixes(
-                ed_helper, url, template, spreadsheet,
-                progress_bar_update, ferpa
+                ed_helper, urls, resub_due, template,
+                spreadsheets, progress_bar_update, ferpa
             )
         )
         if progress_bar_update:
