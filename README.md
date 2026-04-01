@@ -128,8 +128,8 @@ TA_Name,123456
 ...
 ```
 Note the differences from a regular consistency check:
-- You may check *multiple assignments* in one command run by supplying multiple assignment links(and the spreadsheet corresponding to each) as space-separated values. This allows you to run the command just one time for resubmission consistency checks, rather than running it once per assignment eligible in the current resubmission cycle. The [Abbreviating Local Commands](#abbreviating-local-commands) section describes how you could further simplify the resubmission consistency check command.
-- You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S %z`). By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
+- You may check *multiple assignments* in one command run by supplying multiple assignment links (and the spreadsheet corresponding to each) as space-separated values. This allows you to run the command just one time for resubmission consistency checks, rather than running it once per assignment eligible in the current resubmission cycle. The [Abbreviating Local Commands](#abbreviating-local-commands) section describes how you could further simplify the resubmission consistency check command.
+- You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S`). By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
 
 ## Abbreviating Local Commands
 
