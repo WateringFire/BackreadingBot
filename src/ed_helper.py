@@ -424,12 +424,22 @@ class EdHelper:
         datetime formatting. 'milliseconds' is whether or not the given time
         contains milliseconds
         """
-        splitted = time.rsplit(':', 1)
-        datetime_format = (EdConstants.DATETIME_FORMAT.replace('.', '')
-                           if not milliseconds else
+        # colinlim, iywang: Ed sporadically includes milliseconds in their timestamps,
+        # so we will use a patchy way to verify if the time *actually* contains milliseconds:
+        # if there is a . in the time str, we assume there are milliseconds.
+        
+        milliseconds = ('.' in time)
+        # Take out ':' in offset if applicable
+        if ('+' in time):
+            splitted = time.rsplit(':', 1)
+            time = splitted[0] + splitted[1]
+        datetime_format = (EdConstant.DATETIME_FORMAT.replace('%z', 'Z')
+                           if '+' not in time else
                            EdConstants.DATETIME_FORMAT)
-        return datetime.datetime.strptime(
-            splitted[0] + splitted[1], datetime_format)
+        datetime_format = (datetime_format.replace('.%f', '')
+                           if not milliseconds else
+                           datetime_format)
+        return datetime.datetime.strptime(time, datetime_format)  
 
     @staticmethod
     def valid_token(
