@@ -116,7 +116,7 @@ async def br_pull(ctx):
     try:
         if ctx.guild.id not in database:
             logging.info(f"{ctx.guild.id} not registered in database")
-            send_message(ctx.channel,
+            await send_message(ctx.channel,
                          "Unable to pull as this server is unregistered")
             return
 
