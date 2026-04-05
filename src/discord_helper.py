@@ -121,22 +121,17 @@ class DiscordHelper:
         """
         if (final_message == "Deleted from Ed"):
             logging.debug(f"Deleting thread {ed_thread_id}")
-            # try:
-            discord_thread_id = database.get_threads(guild_id)[ed_thread_id]
-            # except Exception as e:
-            #     logging.exception(f"exception was thrown{e}") 
+            discord_thread_id = database.get_threads(str(guild_id))[str(ed_thread_id)]
             thread = bot.get_channel(discord_thread_id)
 
             await send_message(thread, final_message)
             
             await thread.edit(archived=True, locked=True,)
             database.remove_thread(guild_id, ed_thread_id)
-            # raise Exception(final_message)
         else:
-            discord_thread_id = database.get_threads(guild_id)[ed_thread_id]
+            discord_thread_id = database.get_threads(str(guild_id))[str(ed_thread_id)]
             logging.debug(f"Resolving thread {discord_thread_id}")
             thread = bot.get_channel(discord_thread_id)
-
             await send_message(thread, final_message)
             await thread.edit(archived=True, locked=True,)
             database.remove_thread(guild_id, ed_thread_id)
@@ -553,7 +548,6 @@ class DiscordHelper:
                         #  f"id {server_threads[thread_id]}")
             await DiscordHelper.resolve_thread(bot, database, guild_id,
                                                thread_id, "Deleted from Ed")
-            raise Exception(str(deleted_threads) + ' SERVER THREADS: ' + str(server_threads)+ 'here')
             continue
 # ./bash/keep-running.sh &
 # ./bash/kill.sh
