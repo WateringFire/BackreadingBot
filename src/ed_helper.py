@@ -53,7 +53,7 @@ class EdConstants:
 
 class EdRegex:
     NUM_PATTERN = re.compile(r'[0-9]+')  # noqa: E501
-    COURSE_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/discussion/?')  # noqa: E501
+    COURSE_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/discussion/?[0-9]*')  # noqa: E501
     ASSIGNMENT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/slides/[0-9]+/?')  # noqa: E501
     ATTEMPT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/attempts\?(email=[A-Za-z0-9]+(@|%40)uw.edu&)?slide=[0-9]+/?')  # noqa: E501
     CONTENT_JUNK_REGEX = re.compile(r'\u003c[^\u003c\u003e]*\u003e')  # noqa: E501
