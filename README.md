@@ -4,13 +4,10 @@ This script library allows CSE 12x/14x TAs perform various grading assistance ch
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
 ### Python
-First, make sure you're on `python3.9` and that you're able to run python commands via a `python3.9` prefix. To test this, run the following:
+This bot only works on an older version of python, `python3.9` and the easiest way to get this version is to create a conda environment with this version.
+Start by creating a conda environment for the python installation requirements
 ```bash
-python3.9 --version
-```
-Then create a conda environment for the python installation requirements
-```bash
-conda create --name backreading-bot
+conda create -n backreading-bot python=3.9
 conda activate backreading-bot
 ```
 Then, install the python dependencies
