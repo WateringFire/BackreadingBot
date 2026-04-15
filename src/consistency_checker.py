@@ -144,8 +144,7 @@ class ConsistencyChecker:
                 if not re.compile(ConsistencyConstants.TEMPLATE_REGEX.format(
                     criteria_name=criteria['name'])
                 ).search(content):
-                    if criteria['mark'] != "E":
-                        return "Template not used, "
+                    return "Template not used, "
                 else:
                     # Template was used, but the mark doesn't match
                     return "Assigned grade doesn't match feedback box, "
