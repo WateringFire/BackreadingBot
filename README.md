@@ -1,5 +1,5 @@
 # BackreadingBot
-This script library allows CSE 12x/14x TAs perform various grading assistance checks on Ed assignments
+This script library allows CSE 12x/14x TAs to perform various grading assistance checks on Ed assignments and efficiently answer grading questions on Ed.
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
@@ -8,14 +8,15 @@ First, make sure you're on `python3.9` and that you're able to run python comman
 ```bash
 python3.9 --version
 ```
-Then create a conda environment for the python installation requirements
+Then create a conda environment for the python installation requirements:
 ```bash
-conda create --name backreading-bot
+conda create --name backreading-bot python=3.9
 conda activate backreading-bot
 ```
-Then, install the python dependencies
+Then install the python dependencies:
 ```bash
 pip install -r requirements.txt
+pip install discord.py
 ```
 Currently, each of the listed requirements individually may/may not be actually necessary for the bot to function. These are just what was installed on the device used to run the bot in 2022-2024.
 
@@ -58,7 +59,7 @@ This will stop the bot and related wrapper process.
 
 # Using the Bot
 
-If you aren't the owner of the bot in question, or if you've already completed the set up then the following describes how to use the bot with relevant commands
+If you aren't the owner of the bot in question, or if you've already completed the setup, then the following describes how to use the bot with relevant commands.
 
 ## Discord Command Examples
 #### Backreading Functionality
@@ -158,7 +159,13 @@ python3.9 commands.py -c consistency_resub -e ED_TOKEN -a temp/CONFIGURATION_FIL
     - `consistency_checker.py`
         - Running consistency checks:
             - Making sure selected dropdown matches value in overall feedback box
-            - Most recent / final submission graded
+            - Most recent / final submission before assignment deadline graded
+            - TA email left on student submission
+            - etc.
+    - `consistency_resub_checker.py`
+        - Running resub consistency checks:
+            - Making sure selected dropdown matches value in overall feedback box
+            - Most recent / final submission before resubmission deadline graded
             - TA email left on student submission
             - etc.
     - `constants.py`
