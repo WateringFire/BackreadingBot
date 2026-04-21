@@ -144,11 +144,10 @@ class ConsistencyChecker:
                 if not re.compile(ConsistencyConstants.TEMPLATE_REGEX.format(
                     criteria_name=criteria['name'])
                 ).search(content):
-                    if criteria['mark'] != "E":
-                        return ConsistencyChecker.format_result("Template not used, ")
+                    return "Template not used, "
                 else:
                     # Template was used, but the mark doesn't match
-                    return ConsistencyChecker.format_result("Assigned grade doesn't match feedback box, ")
+                    return "Assigned grade doesn't match feedback box, "
         return ""
 
     @staticmethod
@@ -396,6 +395,8 @@ class ConsistencyChecker:
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
                 'url' - The url of the ed assignment to check
+                'template' - Whether or not the grading template is expected,
+                             default False
                 'file_name' - The name to use for the two saved .csv and .html
                               files
                 'spreadsheet' - A dictionary mapping ed student ID to TA name

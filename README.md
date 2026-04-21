@@ -1,5 +1,5 @@
 # BackreadingBot
-This script library allows CSE 12x/14x TAs perform various grading assistance checks on Ed assignments
+This script library allows CSE 12x/14x TAs to perform various grading assistance checks on Ed assignments and efficiently answer grading questions on Ed.
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
@@ -10,9 +10,10 @@ Start by creating a conda environment for the python installation requirements
 conda create -n backreading-bot python=3.9
 conda activate backreading-bot
 ```
-Then, install the python dependencies
+Then install the python dependencies:
 ```bash
 pip install -r requirements.txt
+pip install discord.py
 ```
 Currently, each of the listed requirements individually may/may not be actually necessary for the bot to function. These are just what was installed on the device used to run the bot in 2022-2024.
 
@@ -55,7 +56,7 @@ This will stop the bot and related wrapper process.
 
 # Using the Bot
 
-If you aren't the owner of the bot in question, or if you've already completed the set up then the following describes how to use the bot with relevant commands
+If you aren't the owner of the bot in question, or if you've already completed the setup, then the following describes how to use the bot with relevant commands.
 
 ## Discord Command Examples
 #### Backreading Functionality
@@ -110,20 +111,22 @@ Local execution is supported for the checking ungraded and consistency commands 
 
 Below is an example of a consistency check for a first-time submission cycle run via this method (with the Ed API token removed):
 ```bash
-python3.9 commands.py -c consistency -e ED_TOKEN -l 'https://edstem.org/us/courses/50191/lessons/87264/attempts?email=jspaniac@uw.edu&slide=478586' -t -f
+python3.9 commands.py -c consistency -e ED_TOKEN -l 'https://edstem.org/us/courses/50191/lessons/87264/attempts?email=jspaniac@uw.edu&slide=478586' -t -s temp/c0.csv
 ```
-The `-c` flag is for which command you'd like to run, `-e` is for your Ed API token, `-l` is for the link to the final submission slide for the assignment, `-t` indicates that we want to check against the overall grading template, and `-f` shows we want to have our results be FERPA compliant (not including student emails).
-
-Below is an example of running a resubmission consistency check for a resubmission grading cycle via this method (with the Ed API token removed):
-```bash
-python commands.py -c consistency_resub -e ED_TOKEN -l 'https://edstem.org/us/courses/67442/lessons/119281/attempts?email=jachi@uw.edu&slide=662732' 'https://edstem.org/us/courses/90026/lessons/155056/attempts?email=iywang@uw.edu&slide=904654' -t -s temp/c0.csv temp/p0.csv -d RESUB_DEADLINE
-```
-This command is run assuming you have a `temp` directory in the root of the project, and that you have a `c0.csv` and `p0.csv` file in that directory that maps TA names to student Ed IDs that they graded. (It is recommended to supply spreadsheets with the `-s` argument to speed up consistency checks, though it is possible to run without.) The `c0.csv` and `p0.csv` files should look like the following:
+The `-c` flag is for which command you'd like to run, `-e` is for your Ed API token, `-l` is for the link to the final submission slide for the assignment, `-t` indicates that we want to check against the overall grading template. The `-s` flag is for the scrubbed spreadsheet mapping TA names to IDs of students they graded; `c0.csv` should be formatted as follows:
 ```
 TA,Student Id
 TA_Name,123456
 ...
 ```
+The `-s` flag is optional, but allows the consistency check to identify which TA is responsible for the consistency issue raised. Additionally, we may supply the `-f` flag to show that we want to have our results be FERPA compliant (not including student emails).
+
+Below is an example of running a resubmission consistency check for a resubmission grading cycle via this method (with the Ed API token removed):
+```bash
+python commands.py -c consistency_resub -e ED_TOKEN -l 'https://edstem.org/us/courses/67442/lessons/119281/attempts?email=jachi@uw.edu&slide=662732' 'https://edstem.org/us/courses/90026/lessons/155056/attempts?email=iywang@uw.edu&slide=904654' -t -s temp/c0.csv temp/p0.csv -d RESUB_DEADLINE
+```
+This command is run assuming you have a `temp` directory in the root of the project, and that you have a `c0.csv` and `p0.csv` file in that directory that maps TA names to student Ed IDs that they graded. (It is recommended to supply spreadsheets with the `-s` argument to speed up consistency checks, though it is possible to run without.) The `c0.csv` and `p0.csv` files should have the same format as the scrubbed spreadsheet described above.
+
 Note the differences from a regular consistency check:
 - You may check *multiple assignments* in one command run by supplying multiple assignment links (and the spreadsheet corresponding to each) as space-separated values. This allows you to run the command just one time for resubmission consistency checks, rather than running it once per assignment eligible in the current resubmission cycle. The [Abbreviating Local Commands](#abbreviating-local-commands) section describes how you could further simplify the resubmission consistency check command.
 - You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S`). By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
@@ -153,7 +156,13 @@ python3.9 commands.py -c consistency_resub -e ED_TOKEN -a temp/CONFIGURATION_FIL
     - `consistency_checker.py`
         - Running consistency checks:
             - Making sure selected dropdown matches value in overall feedback box
-            - Most recent / final submission graded
+            - Most recent / final submission before assignment deadline graded
+            - TA email left on student submission
+            - etc.
+    - `consistency_resub_checker.py`
+        - Running resub consistency checks:
+            - Making sure selected dropdown matches value in overall feedback box
+            - Most recent / final submission before resubmission deadline graded
             - TA email left on student submission
             - etc.
     - `constants.py`
