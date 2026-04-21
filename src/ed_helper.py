@@ -27,6 +27,8 @@ class EdConstants:
     CHALLENGE_USER_REQUEST = 'https://us.edstem.org/api/challenges/{challenge_id}/users'  # noqa: E501
     CHALLENGE_SUBMISSIONS = 'https://us.edstem.org/api/users/{user_id}/challenges/{challenge_id}/submissions'  # noqa: E501
 
+    ED_INLINE = "https://us.edstem.org/api/challenges/submissions/{submission_id}/line_comments"
+
     ED_ATTEMPT_RESULTS_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}/results?students=1&strategy=latest&observers=0"  # noqa: E501
     ED_LESSON_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}?view=1"  # noqa: E501
     ED_RUBRIC_REQUEST = "https://us.edstem.org/api/rubrics/{rubric_id}"  # noqa: E501
@@ -51,9 +53,9 @@ class EdConstants:
 
 class EdRegex:
     NUM_PATTERN = re.compile(r'[0-9]+')  # noqa: E501
-    COURSE_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/discussion/')  # noqa: E501
-    ASSIGNMENT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/slides/[0-9]+')  # noqa: E501
-    ATTEMPT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/attempts\?(email=[A-Za-z0-9]+(@|%40)uw.edu&)?slide=[0-9]+')  # noqa: E501
+    COURSE_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/discussion/?[0-9]*')  # noqa: E501
+    ASSIGNMENT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/slides/[0-9]+/?')  # noqa: E501
+    ATTEMPT_PATTERN = re.compile(r'https://edstem.org/us/courses/[0-9]+/lessons/[0-9]+/attempts\?(email=[A-Za-z0-9]+(@|%40)uw.edu&)?slide=[0-9]+/?')  # noqa: E501
     CONTENT_JUNK_REGEX = re.compile(r'\u003c[^\u003c\u003e]*\u003e')  # noqa: E501
     REMOVE_HTML_REGEX = re.compile('<.*?>')  # noqa: E501
     EMAIL_REGEX = re.compile(r'[A-Za-z0-9]+(@|%40)(uw|cs.washington).edu')  # noqa: E501
@@ -311,12 +313,7 @@ class EdHelper:
 
         all_criteria = []
         ed_quiz_responses = self.get_quiz_responses(final_id, slide_id)
-        if ed_quiz_responses and ed_quiz_responses[0]:
-            mark = self.get_attempt_mark(ed_quiz_responses[0]['lesson_mark']['id'])
-        else:
-           # jachi: For manually finding students who are missing the final grade slide.
-           # This shouldn't happen but it's good to check :)
-           print(user_id)
+        mark = self.get_attempt_mark(ed_quiz_responses[0]['lesson_mark']['id'])
 
         selected_rubric_items = (mark['selected_rubric_items']
                                  if 'selected_rubric_items' in mark else
@@ -495,8 +492,7 @@ class EdHelper:
         if sid[0].isdigit():
             return str(int(re.search(r'\d+', sid).group()))
         return sid
-
-
+    
 def get_response(
     url: str,
     token: str,
