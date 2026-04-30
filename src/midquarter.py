@@ -198,7 +198,7 @@ class MidQuarter:
 
                 # Place section and studnet email in resulting list if it doesn't exist
                 if (name, section, email) not in data:
-                    data[(name, section,email)] = []
+                    data[(name, section, email)] = []
                 existing_grades = data[(name, section, email)]
 
                 # Pull grades from all submissions for a student
