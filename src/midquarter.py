@@ -202,10 +202,9 @@ class MidQuarter:
                 existing_grades = data[(name, section, email)]
 
                 # Pull grades from all submissions for a student
-                # print("Grabbing grades for student: " + email)
                 existing_grades.append((await MidQuarter._get_all_submissions_grades(ed_helper, url, user_id)))
 
-                # quiz grades at the end, only after the last iteration
+                # Quiz appended grades at the end, only after the last iteration
                 if (len(urls) == counter):
                     # print("Appending quiz attendance")
                     existing_grades.append(MidQuarter._find_value_in_spreadsheet (
@@ -297,11 +296,3 @@ class MidQuarter:
 
         if progress_bar_update:
             await progress_bar_update(1, 1)
-
-        # # Write the info into files to be sent
-        # data = MidQuarter._convert_fixes_to_list(fixes)
-        # total_issues = len(data)
-
-        # file_path = os.path.join(TEMP_DIR, file_name)
-        # write_csv(file_path + ".csv", ['TA', 'Link', 'Issue'], data)
-        # # convert_csv_to_html(file_path + ".csv", file_path + ".html")
