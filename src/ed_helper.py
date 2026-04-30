@@ -194,6 +194,18 @@ class EdHelper:
         return get_response(EdConstants.CHALLENGE_SUBMISSIONS.format(
             user_id=user_id, challenge_id=challenge_id
         ), self.token, self.retries)['submissions']
+    
+    def get_inline_submissions(
+        self,
+        submission_id: int
+    ) -> List[Dict]:
+        """
+        TODO ADD COMMENTING FOR PULL INLINE
+        """
+        url = EdConstants.ED_INLINE
+        return get_response(url.format(
+            submission_id=submission_id
+        ), self.token, self.retries)
 
     def get_attempt_results(
         self,
