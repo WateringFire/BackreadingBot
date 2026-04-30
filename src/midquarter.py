@@ -14,7 +14,7 @@ from src.utils import (
     write_csv, convert_csv_to_html
 )
 from src.constants import (
-    TEMP_DIR, NUM_PROGRESS_UPDATES, PROGRESS_UPDATE_MULTIPLE, RESUB_GRACE_MINUTES, LOGGING_FILE
+    TEMP_DIR, NUM_PROGRESS_UPDATES, LOGGING_FILE
 )
 
 from src.ed_helper import EdHelper
@@ -23,14 +23,10 @@ logging.basicConfig(filename=LOGGING_FILE, encoding='utf-8',
                     level=logging.INFO)
 
 
-class ConsistencyResubConstants:
-    FEEDBACK_BOX_REGEX = r'({criteria_name})[a-zA-Z\s]*:\s*_*(\({criteria_mark}\)|{criteria_mark})'  # noqa: E501
-    TEMPLATE_REGEX = r'({criteria_name})[a-zA-Z\s\\/]*:'  # noqa: E501
-    VIEW_SUBMISSION_LINK = 'https://edstem.org/us/courses/{course_id}/lessons/{lesson_id}/slides/{slide_id}/submissions?u={user_id}&s={submission_id}'  # noqa: E501
-    FERPA_VIEW_ATTEMPT_LINK = 'https://edstem.org/us/courses/{course_id}/lessons/{lesson_id}/attempts?slide={slide_id}&s={submission_id}'  # noqa: E501
-    VIEW_ATTEMPT_LINK = 'https://edstem.org/us/courses/{course_id}/lessons/{lesson_id}/attempts?slide={slide_id}&email={email}'  # noqa: E501
-    ASSIGNMENT_ORDER = ["C0", "P0", "C1", "P1", "P2"]
-    QUIZ_LABEL = "Quiz 0"
+class MidQuarterConstants:
+    OUTPUT_HEADERS = ["Name", "Section", "Email"]
+    QUIZ_HEADER_LABEL = "Quiz 0"
+    QUIZ_DIRECTORY = TEMP_DIR + "/Quiz_0_Version_Set_Scores.csv"
 
 
 class MidQuarterRegex:
@@ -41,163 +37,43 @@ class MidQuarterRegex:
 
 
 class MidQuarter:
+
     @staticmethod
-    def _parse_overall(
-        all_criteria: List[Dict],
-    ) -> str:
-        """
-        Returns all grades from this assignments as a list
-
-        Params: 'all_criteria' - Ed criteria dropdown objects
-        Returns: A List containing just the letter grade times however rubric items.
-        """
-        result = []
-        for criteria in all_criteria:
-            result.append(criteria['mark'])
-        return result
-                    
-
-    def _check_quiz_spreadsheet(
-        filepath:str,
+    def _find_value_in_spreadsheet(
+        file_name:str,
         target_column:str, 
         search_column:str, 
         search_value:str
     ) -> str:
         """
-        Returns the value of target_column where search_column equals search_value.
+        Returns the value of target_column where search_column equals search_value
+        from a given file_name.
         """
-        with open(filepath, mode='r', encoding='utf-8') as file:
+        with open(file_name, mode='r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             for row in reader:
                 if row.get(search_column) == str(search_value):
                     if row.get(target_column) == "Missing":
                         return "Missing"
         return ""
-
-
-    @staticmethod
-    def _find_submission_fixes(
-        submissions: List[Dict],
-        ids: List[int],
-        user_id: int,
-        email: str,
-        section: str,
-        file_name: str
-    ) -> Tuple[str, int]:
-        """
-        Parses through a students graded submissions and reports any issues
-        found with grading formatting
-
-        Params: 'submissions' - A list of Ed submission objects
-                'num_criteria' - The total number of criteria that need to be
-                                 filled out
-                'due_at' - A datetime object representing the due date of the
-                           assignment
-                'template' - Whether or not the grading template is expected
-        Returns: Tuple where string is submission grade(s), int is number of graded submissions
-                 (resubmissions)
-        """
-        submission_nums = 0 
-        data = []
-        # print("new loop")
-        # print (submissions)
-        # TODO GET ALL FEEDBACK FROM THIS LINE AND COUNT RESUBS
-        print("new submission --------------- with length: " + str(len(submissions)))
-        for submission in submissions:
-            if (submission['feedback'] is not None):
-                print("feedback is " + str(submission['feedback']))
-                print(submission['feedback']['criteria'])
-            else:
-                print("feedback is none")
-            
-            if (submission['feedback'] is not None and submission['feedback']['criteria'] != ''):
-                submission_nums += 1
-                # print(submission['id'])
-                # print(email + " " + section)
-                submission_info = []
-                submission_str = ''
-                # submission_info.append(section)
-                # submission_info.append(email)
-
-                # submission_info.append(MidQuarter._parse_overall(submission['feedback']['criteria']))
-                submission_str = (MidQuarter._parse_overall(submission['feedback']['criteria']))
-                # for (i) in range()
-                # data.append(submission_info)
-                if (len(submissions) > 1):
-                    Exception("MORE THAN ONE SUB CHANGE IMPL")
-                return submission_str
-            elif (submission['feedback']['criteria']):
-                submission_nums += 1
-        return data
-        
-        # for submission in submissions:
-        #     created_at = EdHelper.parse_datetime(submission['created_at'])
-        #     grace_period = timedelta(minutes=RESUB_GRACE_MINUTES)
-
-        #     if created_at < due_at + grace_period:
-        #         if submission['feedback'] is not None and (submission['feedback']['criteria'] != [] or submission['feedback']['content'] != ''):
-        #             reason = "Possible late submission graded, "
-        #             content = EdHelper.parse_content(
-        #                 submission['feedback']['content']
-        #             )
-        #             if len(submission['feedback']['criteria']) != num_criteria:
-        #                 # if MidQuarterRegex.SUMMARY_FEEDBACK_REGEX.search(content):
-        #                 #     reason += "Re-resub, " # To count how many re-resubs there were!
-
-        #                 # This is a check that factors out the re-resubs given out. Since re-resubs aren't
-        #                 # assigned any grades, we don't want to output any of them since the output gets very noisy then.
-        #                 if not MidQuarterRegex.SUMMARY_FEEDBACK_REGEX.search(content):
-        #                     reason += "Not all dimensions assigned a grade, "
-        #             if not MidQuarterRegex.EMAIL_REGEX.search(content):
-        #                 # Missing contact info email
-        #                 reason += "Missing or incorrect TA contact information, "
-        #             if template:
-        #                 # Lets check to see if a template is being used - assuming
-        #                 # the format is "Dimension: Score"
-        #                 reason += MidQuarter._check_criteria(
-        #                     submission['feedback']['criteria'], content
-        #                 )
-        #             if reason != "":
-        #                 return reason[:-2], submission['id']
-        #     else:
-        #         if submission['feedback'] is None:
-        #             # Feedback not given to appropriate submission
-        #             return ("Missing grade / incorrect submission graded or " +
-        #                     "marked final", submission['id'])
-                
-        #         reason = ""
-        #         content = EdHelper.parse_content(
-        #             submission['feedback']['content']
-        #         )
-        #         if len(submission['feedback']['criteria']) != num_criteria:
-        #             # if MidQuarterRegex.SUMMARY_FEEDBACK_REGEX.search(content):
-        #             #     reason += "Re-resub, "
-
-        #             # This is a check that factors out the re-resubs given out. Since re-resubs aren't
-        #             # assigned any grades, we don't want to output any of them since the output gets very noisy then.
-        #             if not MidQuarterRegex.SUMMARY_FEEDBACK_REGEX.search(content):
-        #                 reason += "Not all dimensions assigned a grade, "
-        #         if not MidQuarterRegex.EMAIL_REGEX.search(content):
-        #             # Missing contact info email
-        #             reason += "Missing TA contact information, "
-        #         if template:
-        #             # Lets check to see if a template is being used - assuming
-        #             # the format is "Dimension: Score"
-        #             reason += MidQuarter._check_criteria(
-        #                 submission['feedback']['criteria'], content
-        #             )
-        #         if reason != "":
-        #             return reason[:-2], submission['id']
-        #         break
-        return None, None
-
-        
+    
     @staticmethod
     async def _get_all_submissions_grades(
         ed_helper: EdHelper,
         url: str,
         user_id: str
-    ):
+    ) -> List[List[str]]:
+        """
+        Given a url of a final submission slide submission and a user,
+        returns all of their letter grades across all submissions. 
+        Params: 'ed_helper' - A properly initialized EdHelper object with API
+                        access to the ed assignment
+                'url' - The ed assignment to grab the grades for
+                'user_id' - The student to grab grades for
+        Returns: A List of List of strings of all their grades in order of
+                 most recent submission first going backwards.
+        """
+        # Should be the final submission slide viewing feedback on yourself
         course_id, lesson_id, slide_id = EdHelper.get_ids(url)
 
         # Get all of the attempt ids (submissions) for the given assignemnt
@@ -218,10 +94,9 @@ class MidQuarter:
                 rubric_selected_items.append([])
                 continue
             rubric_selected_items.append((quiz_responses)[0]['rubric_selected_items'])
-        # print("All selected rubric items " + str(rubric_selected_items))
         
         # Create a dict of ed internal rubric ids to single letter grades
-        # will have repeat values, with different keys for programming assignments
+        # will have repeat values with different keys for programming assignments
         rubric_id = ed_helper.get_rubric_id(slide_id)
         slide_rubric = (ed_helper.get_rubric(rubric_id))
         # Dict of ed internal rubric id to grade (ENSU)
@@ -231,7 +106,6 @@ class MidQuarter:
             for description in slide_rubric['sections'][num_grade]['items']:
                 # Convert "Excellent" -> "E", "Satisfactory" -> S ...
                 id_to_grades[description['id']] = (ed_helper.parse_content(description['title']).strip()[0])
-        # print("Id to grade dict " + str(id_to_grades))
 
         # For every rubric selected item across submissions, convert to ESNU
         letter_grades = []
@@ -246,48 +120,45 @@ class MidQuarter:
                 # print(type(id_to_grades.keys()))
                 submission_letter_grade.append(id_to_grades.get(rubric_selected_id))
             letter_grades.append(submission_letter_grade)
-        # print("All submissions, all letter grades " + str(letter_grades))
         return letter_grades
 
     @staticmethod
-    async def _find_fixes(
+    async def _generate_script(
         ed_helper: EdHelper,
         urls: List[str],
         file_name: str,
-        progress_bar_update: Optional[Callable[[int, int], None]] = None,
-        ferpa: Optional[bool] = True,
-    ) -> Tuple[Dict[str, List[Tuple[str, str]]], List[str]]:
+        progress_bar_update: Optional[Callable[[int, int], None]] = None
+    ):
         """
-        Finds all student submissions that have inconsistently formatted
-        grading feedback and creates a dictionary containing the fixes that
-        need to be made before publishing grades
-
+        Grabs all students' grades from all submissions and creates a csv
+        at {file_name} with them. Will also attempt to grab quiz attendance
+        from {QUIZ_DIRECTORY} and add attendance if the file exists
+ 
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
                 'urls' - The ed assignment urls
-                'resub_due' - The resubmission due date to enforce in place of
-                              the assignment due date
-                'template' - Whether or not the grading template is expected,
-                             default False
-                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name,
-                                default None
+                'file_name' - Where to write the spreadsheet to
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar, default None
-                'ferpa' - Whether or not to censor student emails from links,
-                          default True
-        Returns: A dictionary mapping (TA | link) -> (link, fixes) for all
-                 assignment that had incorrect formatting and a List of links
-                 to student assignments not found in the grading spreadsheet
         """
-        fixes, not_present, count = defaultdict(list), [], 0
-        data: dict[tuple[str, str], list[str]] = {}
-        counter = 0
+        count, counter, all_headers = 0, 0, []
+        data: dict[tuple[str, str, str], list[str]] = {}
+
+        # Add baseline info to the csv
+        for header_info in MidQuarterConstants.OUTPUT_HEADERS:
+            all_headers.append(header_info)
+
+        # Check if the quiz spreadsheet exists
+        add_quiz_attendance = os.path.isfile(MidQuarterConstants.QUIZ_DIRECTORY)
+        print("Creating sheet with " + str(len(urls)) + " assignments.")
+        if (add_quiz_attendance):
+            print("Quiz attendance found, will be added to sheet.")
+        else:
+            print("Quiz attendance not found, if desired add file " + MidQuarterConstants.QUIZ_DIRECTORY
+                   + " from Gradescope")
         for i, url in enumerate(urls):
             counter += 1
-            spreadsheet = None
-            # if spreadsheets:
-            #     spreadsheet = spreadsheets[i]
 
             attempt_slide = EdHelper.is_overall_submission_link(url)
 
@@ -298,30 +169,21 @@ class MidQuarter:
                             if not attempt_slide else None)
 
             # Get user/challenge information
-            users, due_at, num_criteria, rubric = None, None, None, None
+            users = None
             if not attempt_slide:
-                users = [(user['id'], None, user['tutorial'], None)
+                users = [(user['id'], None, user['tutorial'], None, None)
                         for user in ed_helper.get_challenge_users(challenge_id)
                         if user['course_role'] == "student"]
-
-                challenge = ed_helper.get_challenge(challenge_id)
-                due_at = EdHelper.parse_datetime(challenge['due_at'],
-                                                milliseconds=False)
-                num_criteria = len(challenge['settings']['criteria'])
             else:
                 users = [(attempt['user_id'], attempt['email'],
-                        attempt['tutorial'], attempt['sourced_id'])
+                        attempt['tutorial'], attempt['sourced_id'],
+                        attempt['name'])
                         for attempt in ed_helper.get_attempt_results(lesson_id)
                         if attempt['course_role'] == 'student']
+            
+            count = 0
+            for (user_id, email, section, submission_id, name) in users:
 
-                lesson = ed_helper.get_lesson(lesson_id)
-                due_at = EdHelper.parse_datetime(lesson['due_at'],
-                                                milliseconds=False)
-                rubric = ed_helper.get_rubric(ed_helper.get_rubric_id(slide_id))
-                num_criteria = len(rubric['sections'])
-
-            not_present, count = [], 0
-            for (user_id, email, section, submission_id) in users:
                 # iywang: Progress bar update adjustments to have progress
                 # bar reset for each assignment being checked and not appear
                 # to stall when we have a large number of users not in the
@@ -335,64 +197,73 @@ class MidQuarter:
 
 
                 # Place section and studnet email in resulting list if it doesn't exist
-                if (section,email) not in data:
-                    data[(section,email)] = []
-                existing_grades = data[(section, email)]
+                if (name, section, email) not in data:
+                    data[(name, section,email)] = []
+                existing_grades = data[(name, section, email)]
 
                 # Pull grades from all submissions for a student
-                print("Grabbing grades for student: " + email)
+                # print("Grabbing grades for student: " + email)
                 existing_grades.append((await MidQuarter._get_all_submissions_grades(ed_helper, url, user_id)))
 
                 # quiz grades at the end, only after the last iteration
                 if (len(urls) == counter):
-                    print("Appending quiz attendance")
-                    existing_grades.append(MidQuarter._check_quiz_spreadsheet (
-                        "temp/Quiz_0_Version_Set_Scores.csv", "Version", "Email", email
+                    # print("Appending quiz attendance")
+                    existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+                        MidQuarterConstants.QUIZ_DIRECTORY, "Version", "Email", email
                     ))
+    
+            # Print completion based on ed lesson title
             lesson_data = ed_helper.get_lesson(lesson_id)
-            print("Done pulling grades for lesson: " + lesson_data['title'])
+            lesson_title = lesson_data['title']
+            print("Done pulling grades for lesson: " + lesson_title)
 
+            # Create a new header for the csv based on the title
+            # Find the first number in the assignment (hacky way but should work)
+            assignment_number = -1
+            for char in lesson_title:
+                if (char.isdigit()):
+                    assignment_number = char
+                    break
+            if ("Programming" in lesson_title):
+                all_headers.append("P[" + assignment_number + "]")
+            elif ("Creative" in lesson_title):
+                all_headers.append("C[" + assignment_number + "]")
+            else:
+                all_headers.append(lesson_title)
 
-        
+        # Convert {data} to a simple list
         result = []
-        for (k1, k2) in data.keys():
+        for (name, section, email) in data.keys():
             inner_result = []
-            inner_result.append(k1)
-            inner_result.append(k2)
-            for v in data[(k1,k2)]:
+            inner_result.append(name)
+            inner_result.append(section)
+            inner_result.append(email)
+            for v in data[(name,section,email)]:
                 inner_result.append(v)
             result.append(inner_result)
+        
+        if add_quiz_attendance:
+            all_headers.append((MidQuarterConstants.QUIZ_HEADER_LABEL))
+        await MidQuarter._create_csv(result, file_name, all_headers)
+    
+    @staticmethod
+    async def _create_csv(
+        data: List[str],
+        file_name: str,
+        headers: List[str]
+    ):
+        """
+        Given a list of elements, creates a csv at {TEMP_DIR} with all
+        the provided headers and data
+        Params: 'data' - A list of data to create the spreadsheet with
+                'file_name' - Where to write the spreadsheet to
+                'headers' - csv headers to print
+        """
         file_path = os.path.join(TEMP_DIR, file_name)
-        # TODO add a flag if quiz is included
-        quiz_flag = True
-        output_headers = ["Section", "Email"]
-        for (i) in range(len(urls)):
-            output_headers.append(ConsistencyResubConstants.ASSIGNMENT_ORDER[i])
-        if (quiz_flag):
-            output_headers.append(ConsistencyResubConstants.QUIZ_LABEL)
-        write_csv(file_path + ".csv", output_headers, result)
-        logging.info("Completed consistency check")
-        return fixes, not_present
+        write_csv(file_path + ".csv", headers, data)
 
     @staticmethod
-    def _convert_fixes_to_list(
-        fixes: Dict[str, Tuple[str, str]]
-    ) -> List[List[str]]:
-        """
-        Converts the fixes dictionary to a list format used to export .csv and
-        .html files
-
-        Params: 'fixes' - A dictionary mapping (TA | link) -> (link, issue)
-        Returns: A list of [(TA | link), link, issue] lists
-        """
-        data = []
-        for ta, issues in fixes.items():
-            for (link, issue) in issues:
-                data.append([ta, link, issue])
-        return data
-
-    @staticmethod
-    async def check_consistency(
+    async def create_script(
         ed_helper: EdHelper,
         urls: List[str], 
         file_name: str,
@@ -412,26 +283,18 @@ class MidQuarter:
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar
-                'ferpa' - Whether or not to censor student emails from links,
-                          default True
         Returns: A dictionary mapping (TA | link) -> (link, fixes) for all
                  assignment that had incorrect formatting, a list of links to
                  student assignments not found in the grading spreadsheet, and
                  the total number of issues found
         """
-        # iywang: Since multiple assignments are typically eligible per resub
-        # cycle, allow for multiple assignments to be consistency-checked
-        # at a time under one resub due date. Also, no longer hard-coding
-        # resub due date (must pass in from cmd line).
-
         # Remove email since it messes with ID regex
         urls = [MidQuarterRegex.EMAIL_REGEX.sub('', url) for url in urls]
 
-        fixes, not_present = (
-            await MidQuarter._find_fixes(
-                ed_helper, urls, file_name, progress_bar_update, True
-            )
+        await MidQuarter._generate_script(
+            ed_helper, urls, file_name, progress_bar_update
         )
+
         if progress_bar_update:
             await progress_bar_update(1, 1)
 
@@ -442,5 +305,3 @@ class MidQuarter:
         # file_path = os.path.join(TEMP_DIR, file_name)
         # write_csv(file_path + ".csv", ['TA', 'Link', 'Issue'], data)
         # # convert_csv_to_html(file_path + ".csv", file_path + ".html")
-
-        return fixes, not_present, 0

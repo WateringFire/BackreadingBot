@@ -143,6 +143,19 @@ python3.9 commands.py -c consistency_resub -e ED_TOKEN -a temp/CONFIGURATION_FIL
 ```
 `-n 2 3` will use the assignment links in the 2nd and 3rd rows (1-indexed) of the configuration file located at `temp/CONFIGURATION_FILE_NAME`.
 
+## Midquarter Script Generation
+In addition to consistency checks, you may also need to generate the midquarter check-in form grades. This pulls all grades from the provided assignment links (see below) and their previous grades as well (resubmissions). Optionally if provided, the script can add on whether or not a student attended quiz (currently only quiz 0 allowed).
+
+Provide assignment links before running the command in `temp/assignments.txt`. The links should copied from the final submission slide when viewing feedback on your own submission and look similar to `https://edstem.org/us/courses/97143/lessons/162783/attempts?email=colinlim@uw.edu&slide=957466`.
+
+If quiz attendance is desired, download from Gradescope and place the "`Quiz_0_Version_Set_Scores.csv`" in the `temp/` folder as well. Name should exactly match.
+
+After everything is provided, run the following command with your ED Token. The `-n` flag tells it how many assignemnts from the `temp/assignments.txt` file you would like to grab grades from. These should be space separated line numbers matching the assignment link number (1-indexed)
+```bash
+python3.9 commands.py -c midquarter -e ED_TOKEN -a temp/assignments.txt -n 1 2
+```
+
+
 # Development
 ## Directory Layout
 - `bash`

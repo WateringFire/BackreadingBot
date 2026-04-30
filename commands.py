@@ -138,7 +138,7 @@ async def midquarter(args):
         print(progress_bar(curr, total), end='\n' if curr == total
               else '\r', flush=True)
     
-    await MidQuarter.check_consistency(
+    await MidQuarter.create_script(
         ed_helper, assignment_links, file_name,
         update_progress
     )
