@@ -23,10 +23,21 @@ logging.basicConfig(filename=LOGGING_FILE, encoding='utf-8',
                     level=logging.INFO)
 
 
-class MidQuarterConstants:
+class GradeCalculatorConstants:
     OUTPUT_HEADERS = ["Name", "Section", "Email"]
     QUIZ_HEADER_LABEL = "Quiz 0"
     QUIZ_DIRECTORY = TEMP_DIR + "/Quiz_0_Version_Set_Scores.csv"
+    LETTER_GRADES = "ESNU"
+    # E S U, No grade "requires" Ns, U is max U's allowed. 
+    # 100 is placeholder for unlimited U's.
+    MIN_GRADE_GUARANTEE = {
+      'MIN_3_5': [27, 3, 0],
+      'MIN_3_0': [22, 5, 0],
+      'MIN_2_5': [17, 7, 0],
+      'MIN_2_0': [0, 21, 100],
+      'MIN_1_5': [0, 14, 100],
+      'MIN_0_7': [0, 8, 100],
+    }
 
 
 class MidQuarterRegex:
@@ -36,7 +47,7 @@ class MidQuarterRegex:
     QUIZ_SPREADSHEET_REGEX = r"Quiz_\d+_Version_Set_Scores.csv"
 
 
-class MidQuarter:
+class GradeCalculator:
 
     @staticmethod
     def _find_value_in_spreadsheet(
@@ -61,7 +72,10 @@ class MidQuarter:
     async def _get_all_submissions_grades(
         ed_helper: EdHelper,
         url: str,
-        user_id: str
+        user_id: str,
+        student_to_grades: dict[Tuple[str,str], list[str]],
+        name: str,
+        email: str
     ) -> List[List[str]]:
         """
         Given a url of a final submission slide submission and a user,
@@ -70,6 +84,9 @@ class MidQuarter:
                         access to the ed assignment
                 'url' - The ed assignment to grab the grades for
                 'user_id' - The student to grab grades for
+                'student_to_grade' - a dict of student name/email to number of ENSU
+                'name' - name matching the user_id
+                'email' - email of current user_id
         Returns: A List of List of strings of all their grades in order of
                  most recent submission first going backwards.
         """
@@ -120,6 +137,19 @@ class MidQuarter:
                 # print(type(id_to_grades.keys()))
                 submission_letter_grade.append(id_to_grades.get(rubric_selected_id))
             letter_grades.append(submission_letter_grade)
+
+        # For all the ENSU, add to the student_to_grade dict
+        if not letter_grades:
+            # No grades exist
+            return letter_grades
+        
+        # Grab the most recent grades only
+        for grades in letter_grades[0]:
+          for letter in grades:
+            index = GradeCalculatorConstants.LETTER_GRADES.find(letter)
+            student_to_grades[(name,email)][index] = (
+              student_to_grades[(name,email)][index] + 1
+            )
         return letter_grades
 
     @staticmethod
@@ -142,21 +172,14 @@ class MidQuarter:
                                         values that updates a user-viewable
                                         progress bar, default None
         """
-        count, counter, all_headers = 0, 0, []
+        count, counter = 0, 0
+        debugging = 0
         data: dict[tuple[str, str, str], list[str]] = {}
 
-        # Add baseline info to the csv
-        for header_info in MidQuarterConstants.OUTPUT_HEADERS:
-            all_headers.append(header_info)
+          # Count total grades for each individual student
+        student_to_grades = {} # (name, email) -> List[# E, # S, # N, # U]
+        
 
-        # Check if the quiz spreadsheet exists
-        add_quiz_attendance = os.path.isfile(MidQuarterConstants.QUIZ_DIRECTORY)
-        print("Creating sheet with " + str(len(urls)) + " assignments.")
-        if (add_quiz_attendance):
-            print("Quiz attendance found, will be added to sheet.")
-        else:
-            print("Quiz attendance not found, if desired add file " + MidQuarterConstants.QUIZ_DIRECTORY
-                   + " from Gradescope")
         for i, url in enumerate(urls):
             counter += 1
 
@@ -182,7 +205,13 @@ class MidQuarter:
                         if attempt['course_role'] == 'student']
             
             count = 0
+            debugging = 0
             for (user_id, email, section, submission_id, name) in users:
+                # debugging = debugging + 1
+                # #TODO DEBUGGING
+                # if (debugging > 0):
+                #     continue
+
                 # iywang: Progress bar update adjustments to have progress
                 # bar reset for each assignment being checked and not appear
                 # to stall when we have a large number of users not in the
@@ -194,55 +223,100 @@ class MidQuarter:
                         _ = await progress_bar_update(count, len(users))
                     logging.info(f"{count} / {len(users)} Completed")
 
+                if (name, email) not in student_to_grades:
+                    student_to_grades[(name, email)] = [0, 0, 0, 0]
+                await GradeCalculator._get_all_submissions_grades(
+                    ed_helper, url, user_id, student_to_grades, name, email)
 
-                # Place section and studnet email in resulting list if it doesn't exist
-                if (name, section, email) not in data:
-                    data[(name, section, email)] = []
-                existing_grades = data[(name, section, email)]
 
-                # Pull grades from all submissions for a student
-                existing_grades.append((await MidQuarter._get_all_submissions_grades(ed_helper, url, user_id)))
+                # # Place section and studnet email in resulting list if it doesn't exist
+                # if (name, section, email) not in data:
+                #     data[(name, section, email)] = []
+                # existing_grades = data[(name, section, email)]
 
-                # Quiz appended grades at the end, only after the last iteration
-                if (len(urls) == counter):
-                    # print("Appending quiz attendance")
-                    existing_grades.append(MidQuarter._find_value_in_spreadsheet (
-                        MidQuarterConstants.QUIZ_DIRECTORY, "Version", "Email", email
-                    ))
+                # # Pull grades from all submissions for a student
+                # # print("Grabbing grades for student: " + email)
+                # existing_grades.append((await GradeCalculator._get_all_submissions_grades(ed_helper, url, user_id)))
+
+                # quiz grades at the end, only after the last iteration
+                # if (len(urls) == counter):
+                #     # print("Appending quiz attendance")
+                #     existing_grades.append(GradeCalculator._find_value_in_spreadsheet (
+                #         GradeCalculatorConstants.QUIZ_DIRECTORY, "Version", "Email", email
+                #     ))
     
             # Print completion based on ed lesson title
             lesson_data = ed_helper.get_lesson(lesson_id)
             lesson_title = lesson_data['title']
             print("Done pulling grades for lesson: " + lesson_title)
 
-            # Create a new header for the csv based on the title
-            # Find the first number in the assignment (hacky way but should work)
-            assignment_number = -1
-            for char in lesson_title:
-                if (char.isdigit()):
-                    assignment_number = char
-                    break
-            if ("Programming" in lesson_title):
-                all_headers.append("P[" + assignment_number + "]")
-            elif ("Creative" in lesson_title):
-                all_headers.append("C[" + assignment_number + "]")
-            else:
-                all_headers.append(lesson_title)
+        #TODO DEBUGGING
+        # student_to_grades.clear()
+        # student_to_grades[("Colin", "email@uw.edu")] = [27,3,0,0]
+        # student_to_grades[("Ivy", "email@uw.edu")] = [22,5,0,0]
+        # student_to_grades[("Steven", "email@uw.edu")] = [17,7,0,0]
+        # student_to_grades[("Poojitha", "email@uw.edu")] = [0,21,0,0]
+        # student_to_grades[("Should be 1.5", "email@uw.edu")] = [0,14,0,0]
+        # student_to_grades[("Should be 0.7", "email@uw.edu")] = [0,8,0,0]
 
-        # Convert {data} to a simple list
-        result = []
-        for (name, section, email) in data.keys():
-            inner_result = []
-            inner_result.append(name)
-            inner_result.append(section)
-            inner_result.append(email)
-            for v in data[(name,section,email)]:
-                inner_result.append(v)
-            result.append(inner_result)
-        
-        if add_quiz_attendance:
-            all_headers.append((MidQuarterConstants.QUIZ_HEADER_LABEL))
-        await MidQuarter._create_csv(result, file_name, all_headers)
+        # print("GRADE COUNTING LOOKS LIKE " + str(student_to_grades))
+
+
+        # (name, email) -> min numeric grade
+        student_min_grade = {}
+        for (name, email) in student_to_grades.keys():
+            num_e = student_to_grades[(name, email)][0]
+            num_s = student_to_grades[(name, email)][1]
+            num_u = student_to_grades[(name, email)][3]
+            total_letters = num_e + num_s
+            for i, (min_grade, min_letters) in enumerate(GradeCalculatorConstants.MIN_GRADE_GUARANTEE.items()):
+              # print("looping with i at " + str(i))
+              # print("E: " + str(num_e >= min_letters[0]))
+              # print("Got: " + str(num_e) + " Expected: " + str(min_letters[0]))
+
+              # print("S: " + str((num_s + max((num_e - min_letters[0]), 0)) >= min_letters[1]))
+              # print("Got: " + str(num_s + max((num_e - min_letters[0]), 0)) + " Expected: " + str(min_letters[1]))
+
+              # print("U: " + str(num_u <= min_letters[2]))
+              # print("Got: " + str(num_u) + " Expected: " + str(min_letters[2]))
+              
+              if (num_e >= min_letters[0] and
+                  (num_s + max((num_e - min_letters[0]), 0)) >= min_letters[1] and
+                  num_u <= min_letters[2]):
+                  student_min_grade[(name, email)] = str(min_grade[-3:])
+                  break
+              if (i == len(GradeCalculatorConstants.MIN_GRADE_GUARANTEE) - 1 and
+                      (student_min_grade.get((name, email)) is None)):
+                student_min_grade[(name, email)] = '0_0'
+              # else:
+              #   print("E: " + str(num_e >= min_letters[0]))
+              #   print(num_e)
+              #   print("S: " + str(num_s + max((num_e - min_letters[0]), 0) >= min_letters[1]))
+              #   print(num_s + max((num_e - min_letters[0]), 0))
+              #   print("U: " + str(num_u < min_letters[2]))
+              #   print(num_u)
+        print("MIN GRADES ARE AS FOLLOWS (" + str(len(student_min_grade)) + "): ")
+        temp_csv = []
+        temp_csv_header = ["name", "email", "grade"]
+        for (name, email) in student_min_grade.keys():
+          inner_csv = []
+          inner_csv.append(name)
+          inner_csv.append(email)
+          inner_csv.append(student_min_grade[(name, email)].replace("_", "."))
+          temp_csv.append(inner_csv)
+          print("" + name + " " + email + ": " + student_min_grade[(name, email)].replace("_", "."))
+        await GradeCalculator._create_csv(temp_csv, file_name, temp_csv_header)
+
+        # # Convert {data} to a simple list
+        # result = []
+        # for (name, section, email) in data.keys():
+        #     inner_result = []
+        #     inner_result.append(name)
+        #     inner_result.append(section)
+        #     inner_result.append(email)
+        #     for v in data[(name,section,email)]:
+        #         inner_result.append(v)
+        #     result.append(inner_result)        
     
     @staticmethod
     async def _create_csv(
@@ -266,27 +340,33 @@ class MidQuarter:
         urls: List[str], 
         file_name: str,
         progress_bar_update: Optional[Callable[[int, int], None]] = None
-    ):
+    ) -> Tuple[Dict[str, Tuple[str, str]], List[str], int]:
         """
-        Creates a script containing a student's name, section, and email and
-        all of the provided {urls} grades from all submissions. Optionally adds
-        quiz attendance if the spreadsheet is provided.
+        Checks and organizes information regarding grading consistency for a
+        given ed assignment.
 
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
                 'url' - The urls of the ed assignments to check
                 'file_name' - The name to use for the two saved .csv and .html
                               files
+                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name
+                                (can be None)
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar
+        Returns: A dictionary mapping (TA | link) -> (link, fixes) for all
+                 assignment that had incorrect formatting, a list of links to
+                 student assignments not found in the grading spreadsheet, and
+                 the total number of issues found
         """
         # Remove email since it messes with ID regex
         urls = [MidQuarterRegex.EMAIL_REGEX.sub('', url) for url in urls]
 
-        await MidQuarter._generate_script(
+        await GradeCalculator._generate_script(
             ed_helper, urls, file_name, progress_bar_update
         )
 
-        if progress_bar_update:
-            await progress_bar_update(1, 1)
+        # if progress_bar_update:
+        #     await progress_bar_update(1, 1)
+

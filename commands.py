@@ -8,6 +8,8 @@ import zoneinfo
 from src.ed_helper import EdHelper
 from src.consistency_checker import ConsistencyChecker
 from src.midquarter import MidQuarter
+from src.grade_calculator import GradeCalculator
+from src.deductions_checker import DeductionsChecker
 from src.consistency_resub_checker import ConsistencyResubChecker
 from src.utils import (
     progress_bar, invert_csv
@@ -19,7 +21,7 @@ from src.constants import (
     TEMP_DIR, TIMEZONE_REGION_NAME
 )
 
-CHOICES = ['consistency', 'consistency_resub', 'ungraded', 'check_feedback_boxes', 'midquarter']
+CHOICES = ['consistency', 'consistency_resub', 'ungraded', 'check_feedback_boxes', 'midquarter', 'grade_calculator', 'deductions']
 PROGRESS_INCREMENT = 50
 
 
@@ -90,6 +92,105 @@ async def main():
     args = parser.parse_args()
     await globals()[args.command](args)
 
+async def deductions(args):
+    if args.ed_token is None:
+        raise MissingArgument("Ed token required to run grading checks")
+    # if args.assignment_link is None:
+    #     raise MissingArgument("Assignment link required to run grading checks")
+    if not EdHelper.valid_token(args.ed_token):
+        raise InvalidArgument("Ed token is invalid")
+    # if not EdHelper.valid_assignment_url(args.assignment_link):
+    #     raise InvalidArgument("Assignment link is invalid")
+    if args.assignment_nums:
+        if args.assignment_config_file is None:
+            raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
+                                  " required to use row numbers!")
+        
+        num_assignments = sum(1 for line in open(args.assignment_config_file))
+        for num in args.assignment_nums:
+            if int(num) <= 0 or int(num) > num_assignments:
+                raise InvalidArgument(f"Assignment number {num} not in assignment link file")
+
+        config_file = open(args.assignment_config_file)
+
+        assignment_links = []
+        for i, line in enumerate(config_file):
+            if str(i + 1) in args.assignment_nums:
+                assignment_links.append(line.strip())
+
+    ed_helper = EdHelper(args.ed_token)
+    file_name = os.path.join(TEMP_DIR, f'user-{datetime.datetime.now()}')
+
+    print("\nRunning deductions checker:")
+    print(progress_bar(0, 1), end='\r', flush=True)
+
+    async def update_progress(curr, total):
+        print(progress_bar(curr, total), end='\n' if curr == total
+              else '\r', flush=True)
+
+    grouped_deductions = (
+        await DeductionsChecker.check_deductions(
+            ed_helper, args.assignment_link, file_name, args.template,
+            update_progress, args.ferpa
+        )
+    )
+
+async def grade_calculator(args):
+    # Valid Ed token ALWAYS required to run consistency checks
+    if args.ed_token is None:
+        raise MissingArgument("Ed token required to run grading checks")
+    if not EdHelper.valid_token(args.ed_token):
+        raise InvalidArgument("Ed token is invalid")
+
+    # Option 1: args contain assignment number(s) AND assignment link file
+    # (note: assignment number takes precedence over explicit link(s))
+    if args.assignment_nums:
+        if args.assignment_config_file is None:
+            raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
+                                  " required to use row numbers!")
+        
+        num_assignments = sum(1 for line in open(args.assignment_config_file))
+        for num in args.assignment_nums:
+            if int(num) <= 0 or int(num) > num_assignments:
+                raise InvalidArgument(f"Assignment number {num} not in assignment link file")
+
+        config_file = open(args.assignment_config_file)
+
+        assignment_links = []
+        for i, line in enumerate(config_file):
+            if str(i + 1) in args.assignment_nums:
+                assignment_links.append(line.strip())
+    # Option 2: args contain assignment link(s) explicitly
+    elif args.assignment_link:
+        assignment_links = args.assignment_link
+    # Ohterwise, invalid
+    else:
+        raise MissingArgument("Either assignment link (--assignment_link [link]) or assignment"
+                              " number (--assignment_num [num]) required to run grading checks!")
+    
+    # Validate all Ed assignment links
+    for assignment_link in assignment_links:
+        if not EdHelper.valid_assignment_url(assignment_link):
+            raise InvalidArgument(f"Assignment link is invalid: {assignment_link}")
+
+    ed_helper = EdHelper(args.ed_token)
+    file_name = os.path.join(TEMP_DIR, f'user-{datetime.datetime.now()}')
+
+    print("\nRunning grade calculator:")
+    print(progress_bar(0, 1), end='\r', flush=True)
+
+    async def update_progress(curr, total):
+        print(progress_bar(curr, total), end='\n' if curr == total
+              else '\r', flush=True)
+    
+    await GradeCalculator.create_script(
+        ed_helper, assignment_links, file_name,
+        update_progress
+    )
+    print()
+    print("Result files can be found at:" +
+          f"\n\t{file_name}.csv\n\t{file_name}.html\n")
+
 async def midquarter(args):
     # Valid Ed token ALWAYS required to run consistency checks
     if args.ed_token is None:
@@ -142,23 +243,6 @@ async def midquarter(args):
         ed_helper, assignment_links, file_name,
         update_progress
     )
-
-    # print()
-    # print("All clear!" if total_issues == 0 else
-    #       f"{total_issues} students with consistency issues")
-    # if total_issues > 0:
-    #     print("Found Issues:")
-    #     for ta, issues in fixes.items():
-    #         print(f"\t{'TA' if spreadsheets is not None else 'Section'}: " +
-    #               f"{ta}, Issues: {len(issues)}")
-    #         for issue in issues:
-    #             print(f"\t\t{issue}")
-    # if len(not_present) > 0:
-    #     print()
-    #     print("Student submissions not present in grading spreadsheet: "
-    #           f"({len(not_present)})")
-    #     for link in not_present:
-    #         print(f"\t{link}")
     print()
     print("Result files can be found at:" +
           f"\n\t{file_name}.csv\n\t{file_name}.html\n")
