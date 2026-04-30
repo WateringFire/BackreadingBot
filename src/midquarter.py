@@ -267,25 +267,20 @@ class MidQuarter:
         urls: List[str], 
         file_name: str,
         progress_bar_update: Optional[Callable[[int, int], None]] = None
-    ) -> Tuple[Dict[str, Tuple[str, str]], List[str], int]:
+    ):
         """
-        Checks and organizes information regarding grading consistency for a
-        given ed assignment.
+        Creates a script containing a student's name, section, and email and
+        all of the provided {urls} grades from all submissions. Optionally adds
+        quiz attendance if the spreadsheet is provided.
 
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
                 'url' - The urls of the ed assignments to check
                 'file_name' - The name to use for the two saved .csv and .html
                               files
-                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name
-                                (can be None)
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar
-        Returns: A dictionary mapping (TA | link) -> (link, fixes) for all
-                 assignment that had incorrect formatting, a list of links to
-                 student assignments not found in the grading spreadsheet, and
-                 the total number of issues found
         """
         # Remove email since it messes with ID regex
         urls = [MidQuarterRegex.EMAIL_REGEX.sub('', url) for url in urls]
