@@ -1,5 +1,15 @@
 # BackreadingBot
-This script library allows CSE 12x/14x TAs to perform various grading assistance checks on Ed assignments and efficiently answer grading questions on Ed.
+This script library allows CSE 12x/14x TAs to perform various grading assistance checks on Ed assignments and efficiently answer grading questions on Ed. Additionally contains scripts that may be useful throughout the quarter such as consistency checks, mid-quarter csv generation, and minimum grade guarantees.
+
+Note the discord bot is not needed for running any of the local commands (#3-5).
+
+## Table of Contents
+1. [Setup](#setup)
+2. [Using the Bot](#using-the-bot)
+3. [Consistency Checks](#resubmission-consistency-checks)
+4. [Mid-Quarter Script](#midquarter-script-generation)
+5. [Minimum Grade Calculator](#minimum-grade-guarantee)
+6. [Development](#development)
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
@@ -105,7 +115,7 @@ i.e.: https://edstem.org/us/courses/50191/lessons/87264/attempts?slide=478583
     - Optionally, you can attach a scrubbed spreadsheet .csv file that maps TA name to Ed ID of student graded. If included, the consistency results will map inconsistencies to the corresponding TA. If not, it will map to the student's registered section.
 
 
-## Local Command Examples
+## (Resubmission) Consistency Checks
 
 Local execution is supported for the checking ungraded and consistency commands for both regular submissions and resubmissions via the `src/commands.py` file. In doing so, as messages are no longer going through discord, you can actually generate *useful* Ed links (as they need to include student emails) if you run things this way. You'll need your [Ed API token](https://edstem.org/us/settings/api-tokens), the link(s) to the assignment(s) you wish to check (specifically, the link to the slide with inputted grades), and some other optional parameters that are explained in more depth via the `--help` flag.
 
@@ -148,11 +158,25 @@ In addition to consistency checks, you may also need to generate the midquarter 
 
 Provide assignment links before running the command in `temp/assignments.txt`. The links should copied from the final submission slide when viewing feedback on your own submission and look similar to `https://edstem.org/us/courses/97143/lessons/162783/attempts?email=colinlim@uw.edu&slide=957466`.
 
-If quiz attendance is desired, download from Gradescope and place the "`Quiz_0_Version_Set_Scores.csv`" in the `temp/` folder as well. Name should exactly match.
+If quiz attendance is desired, download from Gradescope and place the "`Quiz_0_Version_Set_Scores.csv`" in folder labelled `temp/` as well. Name should exactly match.
 
 After everything is provided, run the following command with your ED Token. The `-n` flag tells it how many assignemnts from the `temp/assignments.txt` file you would like to grab grades from. These should be space separated line numbers matching the assignment link number (1-indexed)
 ```bash
 python3.9 commands.py -c midquarter -e ED_TOKEN -a temp/assignments.txt -n 1 2
+```
+
+## Minimum Grade Guarantee
+
+### NOTE: Currently in developemnt, does support pulling grades from quizzes yet.
+
+You may also want to calculate grade guarantees for students. To pull all grades and calculate the minimum grade for students, create a folder `/temp` in the home directory and create a file called `assignments.txt` (to work with mid quarter script as well).
+
+The file should contain links from the "Submission and Grades" on the "Final Submission" slide on yourself for every assignment in the course. Every different assignment link should be on a new line. An example link is as follows:
+`https://edstem.org/us/courses/97143/lessons/162783/attempts?email=colinlim@uw.edu&slide=957466`. 
+
+Finally, run the following command and wait for a while and find the resulting csv in the `/temp` directory.
+```bash
+python3.9 commands.py -c grade_calculator -e ED_TOKEN -a temp/assignments.txt
 ```
 
 
