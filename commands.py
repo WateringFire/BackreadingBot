@@ -101,6 +101,8 @@ async def deductions(args):
         raise InvalidArgument("Ed token is invalid")
     # if not EdHelper.valid_assignment_url(args.assignment_link):
     #     raise InvalidArgument("Assignment link is invalid")
+
+    # Check links file exists and matches number of links
     if args.assignment_nums:
         if args.assignment_config_file is None:
             raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
@@ -117,6 +119,15 @@ async def deductions(args):
         for i, line in enumerate(config_file):
             if str(i + 1) in args.assignment_nums:
                 assignment_links.append(line.strip())
+    # Ohterwise, invalid
+    else:
+        raise MissingArgument("Missing assignment number (--assignment_num [num]) required to run grading checks!")
+    
+    # Validate all Ed assignment links
+    for assignment_link in assignment_links:
+        if not EdHelper.valid_assignment_url(assignment_link):
+            raise InvalidArgument(f"Assignment link is invalid: {assignment_link}")
+
 
     ed_helper = EdHelper(args.ed_token)
     file_name = os.path.join(TEMP_DIR, f'user-{datetime.datetime.now()}')
@@ -130,48 +141,33 @@ async def deductions(args):
 
     grouped_deductions = (
         await DeductionsChecker.check_deductions(
-            ed_helper, args.assignment_link, file_name, args.template,
+            ed_helper, assignment_links, file_name, args.template,
             update_progress, args.ferpa
         )
     )
 
 async def grade_calculator(args):
-    # Valid Ed token ALWAYS required to run consistency checks
+    # Check and validate ed token (-e {ED_TOKEN})
     if args.ed_token is None:
         raise MissingArgument("Ed token required to run grading checks")
     if not EdHelper.valid_token(args.ed_token):
         raise InvalidArgument("Ed token is invalid")
 
-    # Option 1: args contain assignment number(s) AND assignment link file
-    # (note: assignment number takes precedence over explicit link(s))
-    if args.assignment_nums:
-        if args.assignment_config_file is None:
-            raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
-                                  " required to use row numbers!")
-        
-        num_assignments = sum(1 for line in open(args.assignment_config_file))
-        for num in args.assignment_nums:
-            if int(num) <= 0 or int(num) > num_assignments:
-                raise InvalidArgument(f"Assignment number {num} not in assignment link file")
-
-        config_file = open(args.assignment_config_file)
-
-        assignment_links = []
-        for i, line in enumerate(config_file):
-            if str(i + 1) in args.assignment_nums:
-                assignment_links.append(line.strip())
-    # Option 2: args contain assignment link(s) explicitly
-    elif args.assignment_link:
-        assignment_links = args.assignment_link
-    # Ohterwise, invalid
-    else:
-        raise MissingArgument("Either assignment link (--assignment_link [link]) or assignment"
-                              " number (--assignment_num [num]) required to run grading checks!")
-    
+    # Check links file exists and links are valid (-a {link_directory})
+    if args.assignment_config_file is None:
+        raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
+                                " required to use row numbers!")
+    config_file = open(args.assignment_config_file)
+    assignment_links = []
+    num_lines = sum(1 for _ in open(args.assignment_config_file))
+    for i, line in enumerate(config_file):
+        if str(i + 1) in range(num_lines):
+            assignment_links.append(line.strip())
     # Validate all Ed assignment links
     for assignment_link in assignment_links:
         if not EdHelper.valid_assignment_url(assignment_link):
             raise InvalidArgument(f"Assignment link is invalid: {assignment_link}")
+
 
     ed_helper = EdHelper(args.ed_token)
     file_name = os.path.join(TEMP_DIR, f'user-{datetime.datetime.now()}')
