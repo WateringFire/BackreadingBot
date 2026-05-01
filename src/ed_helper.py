@@ -28,6 +28,7 @@ class EdConstants:
     CHALLENGE_SUBMISSIONS = 'https://us.edstem.org/api/users/{user_id}/challenges/{challenge_id}/submissions'  # noqa: E501
 
     ED_INLINE = "https://us.edstem.org/api/challenges/submissions/{submission_id}/line_comments"
+    ED_COURSE_USER_REQUEST = "https://us.edstem.org/api/courses/{course_id}/users/{user_id}?emails=true"
 
     ED_ATTEMPT_RESULTS_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}/results?students=1&strategy=latest&observers=0"  # noqa: E501
     ED_LESSON_REQUEST = "https://us.edstem.org/api/lessons/{lesson_id}?view=1"  # noqa: E501
@@ -194,6 +195,35 @@ class EdHelper:
         return get_response(EdConstants.CHALLENGE_SUBMISSIONS.format(
             user_id=user_id, challenge_id=challenge_id
         ), self.token, self.retries)['submissions']
+    
+    def get_inline_submissions(
+        self,
+        submission_id: int
+    ) -> List[Dict]:
+        """
+        Gets all the inline feedback from a given submisson id
+        Params: 'submission_id' - The ID of the specific submission to check
+                                  feedback of
+        Returns: a list of inline feedback
+        """
+        return get_response(EdConstants.ED_INLINE.format(
+            submission_id=submission_id
+        ), self.token, self.retries)
+    
+    def get_courses_users (
+        self,
+        course_id: str,
+        user_id: str
+    ):
+        """
+        Returns information about the given user in the course
+        Params: 'course_id' - The ID of the Ed course to get threads for
+                'user_id' - The ID of the Ed user to get submissions for
+        Returns: a list of information of that user
+        """
+        return get_response(EdConstants.ED_COURSE_USER_REQUEST.format(
+            course_id=course_id, user_id=user_id
+        ), self.token, self.retries)
 
     def get_attempt_results(
         self,

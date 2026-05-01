@@ -384,9 +384,9 @@ class ConsistencyResubChecker:
                         ids, user_id, email, submission_id, attempt_slide, ferpa
                     )
 
-                    key = (section if spreadsheet is None
-                        else spreadsheet[str(user_id)])
-                    fixes[key].append((link, submission_fixes))
+                    # key = (section if spreadsheet is None
+                    #     else spreadsheet[str(user_id)])
+                    # fixes[key].append((link, submission_fixes))
                 
             print("Done running resub consistency check for lesson " + lesson_id)
 
