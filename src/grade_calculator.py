@@ -26,9 +26,6 @@ DEBUGGING = False
 
 
 class GradeCalculatorConstants:
-    OUTPUT_HEADERS = ["Name", "Section", "Email"]
-    QUIZ_HEADER_LABEL = "Quiz 0"
-    QUIZ_DIRECTORY = TEMP_DIR + "/Quiz_0_Version_Set_Scores.csv"
     LETTER_GRADES = "ESNU"
     # E S U, No grade "requires" Ns, U is max U's allowed. 
     # 100 is placeholder for unlimited U's.
@@ -42,31 +39,11 @@ class GradeCalculatorConstants:
     }
 
 
-class MidQuarterRegex:
+class GradeCalculatorRegex:
     EMAIL_REGEX = re.compile(r'[A-Za-z0-9]+(@|%40)(uw|cs.washington).edu')  # noqa: E501
-    QUIZ_SPREADSHEET_REGEX = r"Quiz_\d+_Version_Set_Scores.csv"
 
 
 class GradeCalculator:
-
-    @staticmethod
-    def _find_value_in_spreadsheet(
-        file_name:str,
-        target_column:str, 
-        search_column:str, 
-        search_value:str
-    ) -> str:
-        """
-        Returns the value of target_column where search_column equals search_value
-        from a given file_name.
-        """
-        with open(file_name, mode='r', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                if row.get(search_column) == str(search_value):
-                    if row.get(target_column) == "Missing":
-                        return "Missing"
-        return ""
     
     @staticmethod
     async def _get_all_submissions_grades(
@@ -187,35 +164,28 @@ class GradeCalculator:
         progress_bar_update: Optional[Callable[[int, int], None]] = None
     ):
         """
-        Prints to {file_name} the student name, email, and minimum grade
+        Prints to {TEMP_DIR/file_name} the student name, email, and minimum grade
         guarantee based on the {MIN_GRADE_GUARANTEE} constant.
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
                 'urls' - The ed assignment urls
-                'file_name' - Where to write the spreadsheet to
+                'file_name' - What to name the resulting .csv
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar, default None
         """
         count = 0
-        debugging = 0
         # Count total grades for each individual student
         student_to_grades = {} # (name, email) -> List[# E, # S, # N, # U]
         for i, url in enumerate(urls):
             users, lesson_id = await GradeCalculator._pull_users_and_lesson_id(ed_helper, url)
             
             count = 0
-            debugging = 0
             for (user_id, email, section, submission_id, name) in users:
-                debugging = debugging + 1
-                if (debugging > 0):
-                    continue
-                
                 if count % math.ceil(len(users) / NUM_PROGRESS_UPDATES) == 0:
                     if progress_bar_update is not None:
                         _ = await progress_bar_update(count, len(users))
                     logging.info(f"{count} / {len(users)} Completed")
-                print("about to get grades" + str(debugging))
 
                 if (name, email) not in student_to_grades:
                     student_to_grades[(name, email)] = [0, 0, 0, 0]
@@ -231,54 +201,33 @@ class GradeCalculator:
 
         student_min_grade = await GradeCalculator._convert_letters_to_grade(student_to_grades)
 
-        print("MIN GRADES ARE AS FOLLOWS (" + str(len(student_min_grade)) + "): ")
-        temp_csv = []
-        temp_csv_header = ["name", "email", "grade"]
+        # Format data to a list of list to be converted to csv
+        csv_student_grades = []
+        csv_headers = ["Name", "Email", "Grade"]
         for (name, email) in student_min_grade.keys():
           inner_csv = []
           inner_csv.append(name)
           inner_csv.append(email)
-          inner_csv.append(student_min_grade[(name, email)].replace("_", "."))
-          temp_csv.append(inner_csv)
-          print("" + name + " " + email + ": " + student_min_grade[(name, email)].replace("_", "."))
-        await GradeCalculator._create_csv(temp_csv, file_name, temp_csv_header)   
+          csv_student_grades.append(inner_csv)
+        await GradeCalculator._create_csv(csv_student_grades, file_name, csv_headers)   
 
     @staticmethod
     async def _convert_letters_to_grade (
         student_to_grades: dict[Tuple[str,str], list[str]]
     ):
-        # # DEBUGGING:
-        # student_to_grades[("BASIC: 3.5", "email@uw.edu")] = [27,3,0,0]
-        # student_to_grades[("BASIC: 3.0", "email@uw.edu")] = [22,5,0,0]
-        # student_to_grades[("BASIC: 2.5", "email@uw.edu")] = [17,7,0,0]
-        # student_to_grades[("BASIC: 2.0", "email@uw.edu")] = [0,21,0,0]
-        # student_to_grades[("BASIC: 1.5", "email@uw.edu")] = [0,14,0,0]
-        # student_to_grades[("BASIC: 0.7", "email@uw.edu")] = [0,8,0,0]
-
-        # student_to_grades[("COMPLEX 3.5 -> 1 U: 2.0", "email@uw.edu")] = [27,3,0,1]
-        # student_to_grades[("COMPLEX 3.0 -> 1 U: 2.0", "email@uw.edu")] = [22,5,0,1]
-        # student_to_grades[("COMPLEX 2.5 -> 1 U: 2.0", "email@uw.edu")] = [17,7,0,1]
-        # student_to_grades[("COMPLEX : 2.0", "email@uw.edu")] = [20,1,0,0]
-        # print("GRADE COUNTING LOOKS LIKE " + str(student_to_grades))
-
+        """
+        Given a dict student grades, calculates and returns the minimum grade guarantee
+        using {MIN_GRADE_GUARANTEE}.
+        Params: 'student_to_grades' - A dict of (name, email) to a list of count of ESNU grades 
+        Returns: A dict of (name, email) to a String representation of their min grade (i.e. "3.0")
+        """
         # (name, email) -> min numeric grade
         student_min_grade = {}
         for (name, email) in student_to_grades.keys():
             num_e = student_to_grades[(name, email)][0]
             num_s = student_to_grades[(name, email)][1]
             num_u = student_to_grades[(name, email)][3]
-            total_letters = num_e + num_s
             for i, (min_grade, min_letters) in enumerate(GradeCalculatorConstants.MIN_GRADE_GUARANTEE.items()):
-              # print("looping with i at " + str(i))
-              # print("E: " + str(num_e >= min_letters[0]))
-              # print("Got: " + str(num_e) + " Expected: " + str(min_letters[0]))
-
-              # print("S: " + str((num_s + max((num_e - min_letters[0]), 0)) >= min_letters[1]))
-              # print("Got: " + str(num_s + max((num_e - min_letters[0]), 0)) + " Expected: " + str(min_letters[1]))
-
-              # print("U: " + str(num_u <= min_letters[2]))
-              # print("Got: " + str(num_u) + " Expected: " + str(min_letters[2]))
-              
               if (num_e >= min_letters[0] and
                   (num_s + max((num_e - min_letters[0]), 0)) >= min_letters[1] and
                   num_u <= min_letters[2]):
@@ -300,7 +249,7 @@ class GradeCalculator:
         Given a list of elements, creates a csv at {TEMP_DIR} with all
         the provided headers and data
         Params: 'data' - A list of data to create the spreadsheet with
-                'file_name' - Where to write the spreadsheet to
+                'file_name' - What to name the resulting .csv
                 'headers' - csv headers to print
         """
         file_path = os.path.join(TEMP_DIR, file_name)
@@ -314,43 +263,40 @@ class GradeCalculator:
         progress_bar_update: Optional[Callable[[int, int], None]] = None
     ) -> Tuple[Dict[str, Tuple[str, str]], List[str], int]:
         """
-        Checks and organizes information regarding grading consistency for a
-        given ed assignment.
-
+        Creates a csv at {TEMP_DIR} called {file_name} mapping student
+        name and email to their minimum guaranteed grade.
         Params: 'ed_helper' - A properly initialized EdHelper object with API
                               access to the ed assignment
-                'url' - The urls of the ed assignments to check
-                'file_name' - The name to use for the two saved .csv and .html
-                              files
-                'spreadsheet' - A list of dictionaries mapping ed student ID to TA name
-                                (can be None)
+                'urls' - The urls of the ed assignments to pull grades from
+                'file_name' - the resulting name for the .csv
                 'progress_bar_update' - A function to call with incremental
                                         values that updates a user-viewable
                                         progress bar
-        Returns: A dictionary mapping (TA | link) -> (link, fixes) for all
-                 assignment that had incorrect formatting, a list of links to
-                 student assignments not found in the grading spreadsheet, and
-                 the total number of issues found
         """
         if (DEBUGGING):
             await GradeCalculator._testing_conversions()
 
         # Remove email since it messes with ID regex
-        urls = [MidQuarterRegex.EMAIL_REGEX.sub('', url) for url in urls]
+        urls = [GradeCalculatorRegex.EMAIL_REGEX.sub('', url) for url in urls]
 
         await GradeCalculator._generate_script(
             ed_helper, urls, file_name, progress_bar_update
         )
 
-        # if progress_bar_update:
-        #     await progress_bar_update(1, 1)
+        if progress_bar_update:
+            await progress_bar_update(1, 1)
 
 
 # Manual Testing
     @staticmethod
     async def _testing_conversions():
+        """
+        Manual testing some borderline conversions. Throws exception if
+        output does not match expected.
+        """
         # Testing
         student_to_grades = {}
+        #                                                   [E,S,N,U]
         student_to_grades[("BASIC: 3.5", "email@uw.edu")] = [27,3,0,0]
         student_to_grades[("BASIC: 3.0", "email@uw.edu")] = [22,5,0,0]
         student_to_grades[("BASIC: 2.5", "email@uw.edu")] = [17,7,0,0]
