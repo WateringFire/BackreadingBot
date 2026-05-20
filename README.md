@@ -9,7 +9,8 @@ Note the discord bot is not needed for running any of the local commands (#3-5).
 3. [Consistency Checks](#resubmission-consistency-checks)
 4. [Mid-Quarter Script](#midquarter-script-generation)
 5. [Minimum Grade Calculator](#minimum-grade-guarantee)
-6. [Development](#development)
+6. [Deductions Checker](#deductions-checker)
+7. [Development](#development)
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
@@ -22,8 +23,7 @@ conda activate backreading-bot
 ```
 Then install the python dependencies:
 ```bash
-pip install -r requirements.txt
-pip install discord.py
+python3.9 -m pip install -r requirements.txt
 ```
 Currently, each of the listed requirements individually may/may not be actually necessary for the bot to function. These are just what was installed on the device used to run the bot in 2022-2024.
 
@@ -139,7 +139,7 @@ This command is run assuming you have a `temp` directory in the root of the proj
 
 Note the differences from a regular consistency check:
 - You may check *multiple assignments* in one command run by supplying multiple assignment links (and the spreadsheet corresponding to each) as space-separated values. This allows you to run the command just one time for resubmission consistency checks, rather than running it once per assignment eligible in the current resubmission cycle. The [Abbreviating Local Commands](#abbreviating-local-commands) section describes how you could further simplify the resubmission consistency check command.
-- You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S`). By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
+- You must specify the due date of the resubmission following the `-d` flag, formatted as `MM/DD/YY HH:MM:SS` (this matches the `strptime` format `%m/%d/%y %H:%M:%S`). For example, for a deadline at Jan 2nd, 3000 at hour 4, minute 5, and second 6 it would be formatted as '01/02/30 04:05:06' including the quotes. By default, the consistency check will use the *America/Los_Angeles* region for the due date's timezone, and has a grace period of 0 minutes.
 
 ## Abbreviating Local Commands
 
@@ -167,7 +167,7 @@ python3.9 commands.py -c midquarter -e ED_TOKEN -a temp/assignments.txt -n 1 2
 
 ## Minimum Grade Guarantee
 
-### NOTE: Currently in developemnt, does support pulling grades from quizzes yet.
+### NOTE: Currently in development, does support pulling grades from quizzes yet.
 
 You may also want to calculate grade guarantees for students. To pull all grades and calculate the minimum grade for students, create a folder `/temp` in the home directory and create a file called `assignments.txt` (to work with mid quarter script as well).
 
@@ -178,6 +178,15 @@ Finally, run the following command and wait for a while and find the resulting c
 ```bash
 python3.9 commands.py -c grade_calculator -e ED_TOKEN -a temp/assignments.txt
 ```
+
+## Deductions Checker
+To pull all deductions from all submissions for an assignment, use the followng command:
+```bash
+python3.9 commands.py -c deductions -e ED_TOKEN -a temp/deductions_assignments.txt -n 1
+```
+The `-a` is directory of assignment links (url should be grabbed from the coding slide while viewing feedback) separated by newlines.
+The `-n` flag should be the number of those links wanting to be pulled
+The `-e` flag is required with an ed token.
 
 
 # Development

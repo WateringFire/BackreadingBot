@@ -27,6 +27,7 @@ class MidQuarterConstants:
     OUTPUT_HEADERS = ["Name", "Section", "Email"]
     QUIZ_HEADER_LABEL = "Quiz 0"
     QUIZ_DIRECTORY = TEMP_DIR + "/Quiz_0_Version_Set_Scores.csv"
+    QUIZ_GRADE_CONVERSIONS_DIRECTORY = TEMP_DIR + "/Sp26 Quiz 0 Grade Conversions - Master List.csv"
 
 
 class MidQuarterRegex:
@@ -53,8 +54,7 @@ class MidQuarter:
             reader = csv.DictReader(file)
             for row in reader:
                 if row.get(search_column) == str(search_value):
-                    if row.get(target_column) == "Missing":
-                        return "Missing"
+                    return row.get(target_column)
         return ""
     
     @staticmethod
@@ -151,12 +151,15 @@ class MidQuarter:
 
         # Check if the quiz spreadsheet exists
         add_quiz_attendance = os.path.isfile(MidQuarterConstants.QUIZ_DIRECTORY)
+        add_quiz_grades = os.path.isfile(MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY)
         print("Creating sheet with " + str(len(urls)) + " assignments.")
-        if (add_quiz_attendance):
-            print("Quiz attendance found, will be added to sheet.")
+        if (add_quiz_grades):
+            print("Quiz grades found, will be added to sheet")
+        # elif (add_quiz_attendance):
+        #     print("Quiz attendance found, will be added to sheet.")
         else:
-            print("Quiz attendance not found, if desired add file " + MidQuarterConstants.QUIZ_DIRECTORY
-                   + " from Gradescope")
+            print("Quiz attendance/grades not found, if desired add file " + MidQuarterConstants.QUIZ_DIRECTORY
+                    + " or " + MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY + "from Gradescope")
         for i, url in enumerate(urls):
             counter += 1
 
@@ -183,6 +186,7 @@ class MidQuarter:
             
             count = 0
             for (user_id, email, section, submission_id, name) in users:
+
                 # iywang: Progress bar update adjustments to have progress
                 # bar reset for each assignment being checked and not appear
                 # to stall when we have a large number of users not in the
@@ -206,9 +210,21 @@ class MidQuarter:
                 # Quiz appended grades at the end, only after the last iteration
                 if (len(urls) == counter):
                     # print("Appending quiz attendance")
-                    existing_grades.append(MidQuarter._find_value_in_spreadsheet (
-                        MidQuarterConstants.QUIZ_DIRECTORY, "Version", "Email", email
-                    ))
+                    if (add_quiz_grades):
+                        existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+                            MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY, "Q1 Decomp", "Email", email
+                        ))
+                        existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+                            MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY, "Q2 File IO", "Email", email
+                        ))
+                        existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+                            MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY, "Q3 Lookup", "Email", email
+                        ))
+                    elif (add_quiz_attendance):
+                        existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+                            MidQuarterConstants.QUIZ_DIRECTORY, "Version", "Email", email
+                        ))
+
     
             # Print completion based on ed lesson title
             lesson_data = ed_helper.get_lesson(lesson_id)
@@ -223,9 +239,9 @@ class MidQuarter:
                     assignment_number = char
                     break
             if ("Programming" in lesson_title):
-                all_headers.append("P[" + assignment_number + "]")
+                all_headers.append("P" + assignment_number)
             elif ("Creative" in lesson_title):
-                all_headers.append("C[" + assignment_number + "]")
+                all_headers.append("C" + assignment_number)
             else:
                 all_headers.append(lesson_title)
 
@@ -240,8 +256,13 @@ class MidQuarter:
                 inner_result.append(v)
             result.append(inner_result)
         
-        if add_quiz_attendance:
+        if add_quiz_grades:
+            all_headers.append(("Quiz 0 - Q1"))
+            all_headers.append(("Quiz 0 - Q2"))
+            all_headers.append(("Quiz 0 - Q3"))
+        elif add_quiz_attendance:
             all_headers.append((MidQuarterConstants.QUIZ_HEADER_LABEL))
+
         await MidQuarter._create_csv(result, file_name, all_headers)
     
     @staticmethod
@@ -283,6 +304,13 @@ class MidQuarter:
         """
         # Remove email since it messes with ID regex
         urls = [MidQuarterRegex.EMAIL_REGEX.sub('', url) for url in urls]
+
+        # existing_grades = []
+        # existing_grades.append(MidQuarter._find_value_in_spreadsheet (
+        #     MidQuarterConstants.QUIZ_GRADE_CONVERSIONS_DIRECTORY, "Q3 Lookup", "Email", "daynat28@uw.edu"
+        # ))
+        # print(existing_grades)
+        # raise Exception();
 
         await MidQuarter._generate_script(
             ed_helper, urls, file_name, progress_bar_update
