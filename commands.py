@@ -93,6 +93,7 @@ async def main():
     await globals()[args.command](args)
 
 async def deductions(args):
+    # TODO: grab token from auth.json is tag is not there?
     if args.ed_token is None:
         raise MissingArgument("Ed token required to run grading checks")
     # if args.assignment_link is None:
@@ -241,7 +242,7 @@ async def midquarter(args):
     )
     print()
     print("Result files can be found at:" +
-          f"\n\t{file_name}.csv\n\t{file_name}.html\n")
+          f"\n\t{file_name}.csv")
 
 
 async def consistency(args):

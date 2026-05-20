@@ -9,7 +9,8 @@ Note the discord bot is not needed for running any of the local commands (#3-5).
 3. [Consistency Checks](#resubmission-consistency-checks)
 4. [Mid-Quarter Script](#midquarter-script-generation)
 5. [Minimum Grade Calculator](#minimum-grade-guarantee)
-6. [Development](#development)
+6. [Deductions Checker](#deductions-checker)
+7. [Development](#development)
 
 ## Setup
 There is a non-trivial amount of setup required to start executing this discord bot on your local machine, which has been segmented into the 3 primary parts below.
@@ -178,6 +179,15 @@ Finally, run the following command and wait for a while and find the resulting c
 ```bash
 python3.9 commands.py -c grade_calculator -e ED_TOKEN -a temp/assignments.txt
 ```
+
+## Deductions Checker
+To pull all deductions from all submissions for an assignment, use the followng command:
+```bash
+python3.9 commands.py -c deductions -e ED_TOKEN -a temp/deductions_assignments.txt -n 1
+```
+The `-a` is directory of assignment links (url should be grabbed from the coding slide while viewing feedback) separated by newlines.
+The `-n` flag should be the number of those links wanting to be pulled
+The `-e` flag is required with an ed token.
 
 
 # Development
