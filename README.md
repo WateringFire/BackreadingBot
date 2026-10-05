@@ -1,7 +1,7 @@
 # BackreadingBot
 This script library allows CSE 12x/14x TAs to perform various grading assistance checks on Ed assignments and efficiently answer grading questions on Ed. Additionally contains scripts that may be useful throughout the quarter such as consistency checks, mid-quarter csv generation, and minimum grade guarantees.
 
-Note the discord bot is not needed for running any of the local commands (#3-5).
+Note the discord bot is not needed for running any of the local commands (#3-6).
 
 ## Table of Contents
 1. [Setup](#setup)
