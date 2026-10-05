@@ -98,7 +98,6 @@ class GradeCalculator:
         num_of_grades = len(slide_rubric['sections'])
         for num_grade in range(num_of_grades):
             for description in slide_rubric['sections'][num_grade]['items']:
-                # Convert "Excellent" -> "E", "Satisfactory" -> S ...
                 id_to_grades[description['id']] = (ed_helper.parse_content(description['title']).strip()[0])
 
         # For every rubric selected item across submissions, convert to ESNU
@@ -127,6 +126,8 @@ class GradeCalculator:
             student_to_grades[(name,email)][index] = (
               student_to_grades[(name,email)][index] + 1
             )
+            # print(student_to_grades)
+        # print(letter_grades)
         return letter_grades
 
     @staticmethod
@@ -134,27 +135,27 @@ class GradeCalculator:
       ed_helper: EdHelper,
       url: str,
     ) -> int:
-      attempt_slide = EdHelper.is_overall_submission_link(url)
+        attempt_slide = EdHelper.is_overall_submission_link(url)
 
-      # Get the challenge id for the assignment
-      ids = EdHelper.get_ids(url)
-      lesson_id, slide_id = ids[1], ids[2]
-      challenge_id = (ed_helper.get_slide(url)['challenge_id']
-                      if not attempt_slide else None)
+        # Get the challenge id for the assignment
+        ids = EdHelper.get_ids(url)
+        lesson_id, slide_id = ids[1], ids[2]
+        challenge_id = (ed_helper.get_slide(url)['challenge_id']
+                        if not attempt_slide else None)
 
-      users = None
-      # Get user/challenge information
-      if not attempt_slide:
-          users = [(user['id'], None, user['tutorial'], None, None)
-                    for user in ed_helper.get_challenge_users(challenge_id)
-                    if user['course_role'] == "student"]
-      else:
-          users = [(attempt['user_id'], attempt['email'],
-                    attempt['tutorial'], attempt['sourced_id'],
-                    attempt['name'])
-                    for attempt in ed_helper.get_attempt_results(lesson_id)
-                    if attempt['course_role'] == 'student']
-      return users, lesson_id
+        users = None
+        # Get user/challenge information
+        if not attempt_slide:
+            users = [(user['id'], None, user['tutorial'], None, None)
+                        for user in ed_helper.get_challenge_users(challenge_id)
+                        if user['course_role'] == "student"]
+        else:
+            users = [(attempt['user_id'], attempt['email'],
+                        attempt['tutorial'], attempt['sourced_id'],
+                        attempt['name'])
+                        for attempt in ed_helper.get_attempt_results(lesson_id)
+                        if attempt['course_role'] == 'student']
+        return users, lesson_id
 
     @staticmethod
     async def _generate_script(
@@ -198,7 +199,6 @@ class GradeCalculator:
             lesson_data = ed_helper.get_lesson(lesson_id)
             lesson_title = lesson_data['title']
             print("Done pulling grades for lesson: " + lesson_title)
-
         student_min_grade = await GradeCalculator._convert_letters_to_grade(student_to_grades)
 
         # Format data to a list of list to be converted to csv
@@ -208,6 +208,7 @@ class GradeCalculator:
           inner_csv = []
           inner_csv.append(name)
           inner_csv.append(email)
+          inner_csv.append(student_min_grade.get(name,email))
           csv_student_grades.append(inner_csv)
         await GradeCalculator._create_csv(csv_student_grades, file_name, csv_headers)   
 
@@ -236,6 +237,7 @@ class GradeCalculator:
               if (i == len(GradeCalculatorConstants.MIN_GRADE_GUARANTEE) - 1 and
                       (student_min_grade.get((name, email)) is None)):
                 student_min_grade[(name, email)] = '0.0'
+        print(student_min_grade)
         return student_min_grade
 
     
@@ -278,7 +280,6 @@ class GradeCalculator:
 
         # Remove email since it messes with ID regex
         urls = [GradeCalculatorRegex.EMAIL_REGEX.sub('', url) for url in urls]
-
         await GradeCalculator._generate_script(
             ed_helper, urls, file_name, progress_bar_update
         )

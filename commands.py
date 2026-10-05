@@ -159,11 +159,18 @@ async def grade_calculator(args):
         raise MissingArgument("Assignment link file (--assignment_config_file [file_name])"
                                 " required to use row numbers!")
     config_file = open(args.assignment_config_file)
+    # print(args.assignment_config_file)
     assignment_links = []
     num_lines = sum(1 for _ in open(args.assignment_config_file))
+    # print(num_lines)
+    print(str(config_file))
     for i, line in enumerate(config_file):
-        if str(i + 1) in range(num_lines):
-            assignment_links.append(line.strip())
+        # print(i)
+        # print(num_lines)
+        # if str(i + 1) in range(num_lines):
+        #     print("a")
+        assignment_links.append(line.strip())
+        print(str(range(num_lines)))
     # Validate all Ed assignment links
     for assignment_link in assignment_links:
         if not EdHelper.valid_assignment_url(assignment_link):
